@@ -38,6 +38,7 @@ def prepare_opt_state(
     init_vi_parameters: Tuple[jnp.ndarray, jnp.ndarray],
     max_norm: Optional[float] = None,
     clip_min_max_enabled: bool = False,
+    zero_nans_enabled: bool = False,
     optax_scheduler: optax.schedules = optax.constant_schedule,
 ) -> Tuple[optax.GradientTransformation, optax.GradientTransformation]:
     """Setups the optimizer with the given scheduler, method, gradient transformations, and init_values."""
@@ -48,6 +49,8 @@ def prepare_opt_state(
         transformations.append(optax.clip_by_global_norm(max_norm))
     if clip_min_max_enabled:
         transformations.append(clip_min_max())
+    if zero_nans_enabled:
+        transformations.append(optax.zero_nans())
     chained_optimizer = optax.chain(*transformations)
     init_opt_state = chained_optimizer.init(init_vi_parameters)
     return init_opt_state, chained_optimizer

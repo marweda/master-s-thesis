@@ -403,7 +403,9 @@ class ModelDAG:
         unflattened_scale_vi_parameters = fill_triangular(flattened_scale_vi_parameters)
         num_iterations = len(losses)
 
-        raw_loc_vi_parameters = tuple(jnp.split(loc_vi_parameters, self.split_indices, axis=0))
+        raw_loc_vi_parameters = tuple(
+            jnp.split(loc_vi_parameters, self.split_indices, axis=0)
+        )
         num_loc_vi_groups = len(raw_loc_vi_parameters)
         transformed_loc_vi_parameters = jax.tree.map(
             lambda trans, x: trans(x),
@@ -438,6 +440,7 @@ class ModelDAG:
         lr: float,
         max_norm: Optional[float],
         clip_min_max_enabled: bool,
+        zero_nans_enabled: bool,
         prng_key: PRNGKey,
     ) -> dict:
         """
@@ -472,6 +475,7 @@ class ModelDAG:
             init_vi_parameters=init_vi_parameters,
             max_norm=max_norm,
             clip_min_max_enabled=clip_min_max_enabled,
+            zero_nans_enabled=zero_nans_enabled,
         )
 
         final_carry, losses = core_svi_optimization(
@@ -498,6 +502,7 @@ class ModelDAG:
             "lr": lr,
             "max_norm": max_norm,
             "clip_min_max_enabled": clip_min_max_enabled,
+            "zero_nans_enabled": zero_nans_enabled,
             "epochs": epochs,
             "vi_dist": vi_dist.name,
         }
