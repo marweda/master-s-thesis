@@ -11,7 +11,7 @@ from tensorflow_probability.substrates.jax.bijectors import Softplus
 from .linear_predictor import LinearPredictor
 from .node import Node
 from .model_builder import ModelDAG
-from ..utils.custom_tf_distributions import CustomTFDGPD
+from ..utils.custom_tf_distributions import CustomTFDGPD, CustomTFDGEV
 from ..utils.transformations import TransformationFunctions
 
 
@@ -263,7 +263,9 @@ class Normal(Distribution):
         realizations: jnp.ndarray, loc: jnp.ndarray, scale: jnp.ndarray
     ) -> jnp.ndarray:
         """Not curried leaf log PDF computation."""
-        log_pdf = tfd.MultivariateNormalDiag(loc, jnp.diag(scale)).log_prob(realizations)
+        log_pdf = tfd.MultivariateNormalDiag(loc, jnp.diag(scale)).log_prob(
+            realizations
+        )
         return log_pdf
 
     def __add__(self, other):
@@ -796,4 +798,134 @@ class CustomGPD(Distribution):
     def __rmatmul__(self, other):
         raise NotImplementedError(
             "Matrix multiplication is not supported for CustomGPD."
+        )
+
+
+class CustomGEVDistributionValidator:
+    """Handles parameter validation and state management specifically for the CustomGEV distribution."""
+
+    def __init__(self, distribution):
+        self.distribution = distribution
+        self.parameter_types = {}
+        self.distribution_state = None
+
+    def validate_and_setup(self):
+        """Main entry point for validation and state setup."""
+        self.parameter_types = {
+            name: self._set_parameter_type(param)
+            for name, param in self.distribution.parameters.items()
+        }
+        self._validate_parameters()
+        self.distribution_state = self._set_distribution_state()
+        return self.distribution_state
+
+    @staticmethod
+    def _set_parameter_type(param) -> ParameterType:
+        """Determine the type of a parameter."""
+        parameter_type = ParameterType()
+        if hasattr(param, "node_type"):
+            if param.node_type == "LinearPredictor":
+                parameter_type.is_linearpredictor = True
+                return parameter_type
+            else:
+                raise ValueError(
+                    "All parameters must be LinearPredictors for CustomGEV"
+                )
+        else:
+            raise ValueError("All parameters must be LinearPredictors for CustomGEV")
+
+    def _validate_parameters(self) -> None:
+        """Validate all parameters and their relationships."""
+        # Ensure all parameters are LinearPredictors
+        if not all(pt.is_linearpredictor for pt in self.parameter_types.values()):
+            raise ValueError("All parameters must be LinearPredictors for CustomGEV")
+
+        # Ensure responses are provided
+        if self.distribution.responses is None:
+            raise ValueError("Responses must be provided for CustomGEV")
+
+    def _set_distribution_state(self) -> DistributionState:
+        """Setup distribution state for likelihood-only case."""
+        distribution_state = DistributionState()
+        distribution_state.is_likelihood = True
+        return distribution_state
+
+
+class CustomGEV(Distribution):
+    """Custom Generalized Extreme Value distribution implementation."""
+
+    def __init__(
+        self,
+        rv_name: str,
+        location: LinearPredictor,
+        scale: LinearPredictor,
+        shape: LinearPredictor,
+        responses: jnp.ndarray,
+    ):
+        super().__init__(
+            rv_name,
+            {"location": location, "scale": scale, "shape": shape},
+            responses=responses,
+        )
+
+        # CustomGPD specific
+        self.realization_transformation = [TransformationFunctions.identity]
+        self.parameter_transforms = [
+            TransformationFunctions.identity,  # location
+            TransformationFunctions.softplus,  # scale
+            TransformationFunctions.identity,  # shape
+        ]
+
+        # Validate and setup distribution state using the validator
+        self.validator = CustomGEVDistributionValidator(self)
+        self._distribution_state = self.validator.validate_and_setup()
+        self.parameter_types = self.validator.parameter_types
+
+        # VI related
+        self.node = self.setup_node()
+
+        # Model building related
+        if self._distribution_state.is_likelihood:
+            self.model = ModelDAG(self.responses, self.node)
+
+    def setup_node(self) -> None:
+        """Setup node for GAMLSS case only."""
+        return self._setup_for_gamlss()
+
+    def _setup_for_gamlss(self) -> None:
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(self._compute_gamlss_log_pdf, in_axes=(None, None, 0, 0, 0)),
+            transformations=self.parameter_transforms,
+            parents=[
+                self.parameters["location"].node,
+                self.parameters["scale"].node,
+                self.parameters["shape"].node,
+            ],
+        )
+
+    @staticmethod
+    def _compute_gamlss_log_pdf(
+        realizations: jnp.ndarray,
+        mask: jnp.ndarray,
+        location: jnp.ndarray,
+        scale: jnp.ndarray,
+        shape: jnp.ndarray,
+    ) -> jnp.ndarray:
+        """GAMLSS log PDF computation using CustomGPD."""
+        # Create CustomGPD instance
+        distribution = CustomTFDGEV(loc=location, scale=scale, shape=shape)
+
+        # Compute log probability
+        log_pdf = distribution.log_prob(realizations)
+
+        # Apply mask and sum
+        return jnp.sum(log_pdf * mask)
+
+    def __add__(self, other):
+        raise NotImplementedError("Addition operation is not supported for CustomGEV.")
+
+    def __rmatmul__(self, other):
+        raise NotImplementedError(
+            "Matrix multiplication is not supported for CustomGEV."
         )

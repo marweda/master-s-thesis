@@ -8,6 +8,8 @@ from .distributions import (
     DegenerateNormal,
     CustomGPDDistributionValidator,
     CustomGPD,
+    CustomGEVDistributionValidator,
+    CustomGEV,
     ParameterType,
     DistributionState,
 )
@@ -31,6 +33,8 @@ __all__ = [
     "DegenerateNormal",
     "CustomGPDDistributionValidator",
     "CustomGPD",
+    "CustomGEVDistributionValidator",
+    "CustomGEV",
     "Node",
     "ModelDAG",
     "DAGSharedInfoProvider",
