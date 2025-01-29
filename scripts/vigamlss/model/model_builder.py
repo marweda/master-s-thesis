@@ -246,11 +246,16 @@ class DAGIndicesCreator:
             for i in range(len(num_dp_terms_per_lp))
         ]
 
-        self.add_indices = [
+        temp_add_indices = [
             [vi_idx] + [range_list]
             for vi_idx, range_list in zip(
                 vi_indices_for_add, list_of_range_of_num_dp_terms
             )
+        ]
+
+        self.add_indices = [
+            [entry[0] if entry[0] else [-1], entry[1] if entry[1] else [-1]]
+            for entry in temp_add_indices
         ]
 
     def _create_arg_indices(self, sorted_nodes):
@@ -401,14 +406,16 @@ class ModelDAG:
         loc_vi_parameters = final_vi_parameters[0]
         flattened_scale_vi_parameters = final_vi_parameters[1]
         num_vi_parameters = [len(final_vi_parameters[0]), len(final_vi_parameters[1])]
-        if svi_metadata["vi_dist"] is "full_covariance_normal":
-            unflattened_scale_vi_parameters = fill_triangular(flattened_scale_vi_parameters)
-        elif svi_metadata["vi_dist"] is "diagonal_normal":
+        if svi_metadata["vi_dist"] == "full_covariance_normal":
+            unflattened_scale_vi_parameters = fill_triangular(
+                flattened_scale_vi_parameters
+            )
+        elif svi_metadata["vi_dist"] == "diagonal_normal":
             unflattened_scale_vi_parameters = jnp.diag(flattened_scale_vi_parameters)
         else:
             raise NotImplementedError(
                 f"Result PostProcessing for {svi_metadata['vi_dist']} variational distribution is not implemented."
-                )
+            )
         num_iterations = len(losses)
 
         raw_loc_vi_parameters = tuple(

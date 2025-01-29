@@ -1,5 +1,6 @@
 from typing import Callable, Tuple
 from functools import partial
+from operator import add
 
 import jax
 import jax.numpy as jnp
@@ -47,24 +48,36 @@ def compute_neg_mc_elbo(
         dp_pairs,
         is_leaf=lambda x: isinstance(x[0], jnp.ndarray),
     )
-    add_vi_elements: Tuple[Tuple[jnp.ndarray]] = jax.tree.map(
-        lambda add_idx: jax.tree.map(lambda idx: beta_samples_split[idx], add_idx[0]),
+    add_vi_elements: Tuple[Tuple[jnp.ndarray]] = jax.tree_map(
+        lambda add_idx: jax.tree_map(
+            lambda idx: jnp.array([0]) if idx == -1 else beta_samples_split[idx],
+            add_idx[0],
+        ),
         add_idxs,
         is_leaf=lambda x: isinstance(x[0][0], int),
     )
     add_dp_elements: Tuple[Tuple[jnp.ndarray]] = jax.tree.map(
-        lambda add_idx: jax.tree.map(lambda idx: dp_results[idx], add_idx[1]),
+        lambda add_idx: jax.tree.map(
+            lambda idx: jnp.array([0]) if idx == -1 else dp_results[idx], add_idx[1]
+        ),
         add_idxs,
         is_leaf=lambda x: isinstance(x[0][0], int),
     )
-    add_pairs: Tuple[Tuple[jnp.ndarray]] = jax.tree.map(
-        lambda add_vi, add_dp: (add_vi, add_dp), add_vi_elements, add_dp_elements
-    )
-    add_results: Tuple[Tuple[jnp.ndarray]] = jax.tree_map(
-        lambda x: (x[0][:, jnp.newaxis] if x[0].ndim == 1 else x[0])
-        + (x[1][:, jnp.newaxis] if x[1].ndim == 1 else x[1]),
-        add_pairs,
+    add_pairs_unadjusted_axis: Tuple[Tuple[jnp.ndarray]]  = jax.tree_map(
+        lambda a, b: (*a, *b),
+        add_vi_elements,
+        add_dp_elements,
         is_leaf=lambda x: isinstance(x[0], jnp.ndarray),
+    )
+    add_pairs_adjusted_axis = jax.tree.map(
+        lambda x: x[:, jnp.newaxis] if x.ndim == 1 else x,
+        add_pairs_unadjusted_axis,
+        is_leaf=lambda x: isinstance(x, jnp.ndarray)
+    )
+    add_results: Tuple[Tuple[jnp.ndarray]] = jax.tree.map(
+        lambda x: jax.tree.reduce(add, x),
+        add_pairs_adjusted_axis,
+        is_leaf=lambda x: isinstance(x[0], jnp.ndarray)
     )
     add_results_flattened: Tuple[jnp.ndarray] = tuple(
         jax.tree.flatten(add_results, is_leaf=lambda x: isinstance(x, jnp.ndarray))[0]
