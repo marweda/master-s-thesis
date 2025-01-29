@@ -400,7 +400,15 @@ class ModelDAG:
         final_vi_parameters, _, _, _, _ = final_carry
         loc_vi_parameters = final_vi_parameters[0]
         flattened_scale_vi_parameters = final_vi_parameters[1]
-        unflattened_scale_vi_parameters = fill_triangular(flattened_scale_vi_parameters)
+        num_vi_parameters = [len(final_vi_parameters[0]), len(final_vi_parameters[1])]
+        if svi_metadata["vi_dist"] is "full_covariance_normal":
+            unflattened_scale_vi_parameters = fill_triangular(flattened_scale_vi_parameters)
+        elif svi_metadata["vi_dist"] is "diagonal_normal":
+            unflattened_scale_vi_parameters = jnp.diag(flattened_scale_vi_parameters)
+        else:
+            raise NotImplementedError(
+                f"Result PostProcessing for {svi_metadata['vi_dist']} variational distribution is not implemented."
+                )
         num_iterations = len(losses)
 
         raw_loc_vi_parameters = tuple(
@@ -426,6 +434,7 @@ class ModelDAG:
             "transformed_loc_vi_parameters": transformed_loc_vi_parameters_dict,
             "scale_vi_matrix": unflattened_scale_vi_parameters,
             "losses": losses,
+            "num_vi_parameters": num_vi_parameters,
             "svi_metadata": svi_metadata,
         }
         return results_dict

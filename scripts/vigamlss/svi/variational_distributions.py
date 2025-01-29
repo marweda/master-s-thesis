@@ -35,8 +35,8 @@ class FullCovarianceNormal(VariationalDistribution):
         super().__init__("full_covariance_normal", num_vi)
 
     def initialize_parameters(self) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        cholesky_matrix = jnp.eye(self.num_vi)
-        inv_sp_cholesky = TransformDiagonal(Softplus()).inverse(cholesky_matrix)
+        eye_matrix = jnp.eye(self.num_vi)
+        inv_sp_cholesky = TransformDiagonal(Softplus()).inverse(eye_matrix)
         flattened_inv_sp_cholesky = fill_triangular_inverse(inv_sp_cholesky)
         return tuple([jnp.zeros(self.num_vi), stop_gradient(flattened_inv_sp_cholesky)])
 
