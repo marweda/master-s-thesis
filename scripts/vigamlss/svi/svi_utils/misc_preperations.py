@@ -39,19 +39,26 @@ def prepare_opt_state(
     max_norm: Optional[float] = None,
     clip_min_max_enabled: bool = False,
     zero_nans_enabled: bool = False,
-    optax_scheduler: optax.schedules = optax.constant_schedule,
-) -> Tuple[optax.GradientTransformation, optax.GradientTransformation]:
-    """Setups the optimizer with the given scheduler, method, gradient transformations, and init_values."""
+    optax_scheduler: optax.Schedule = optax.constant_schedule,
+) -> Tuple[optax.OptState, optax.GradientTransformation]:
     scheduler = optax_scheduler(value=lr)
-    optimizer = sgd_method(scheduler)
-    transformations = [optimizer]
-    if max_norm is not None:
-        transformations.append(optax.clip_by_global_norm(max_norm))
-    if clip_min_max_enabled:
-        transformations.append(clip_min_max())
+    optimizer = sgd_method(scheduler)  # e.g. optax.sgd or optax.adam or ...
+
+    transformations = []
+
     if zero_nans_enabled:
         transformations.append(optax.zero_nans())
+
+    if max_norm is not None:
+        transformations.append(optax.clip_by_global_norm(max_norm))
+
+    if clip_min_max_enabled:
+        transformations.append(clip_min_max())
+
+    transformations.append(optimizer)
+
     chained_optimizer = optax.chain(*transformations)
+
     init_opt_state = chained_optimizer.init(init_vi_parameters)
     return init_opt_state, chained_optimizer
 

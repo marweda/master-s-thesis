@@ -23,6 +23,14 @@ def compute_neg_mc_elbo(
     vi_sample_func: Callable,
     vi_log_pdf_func: Callable,
 ) -> float:
+    def log_joint_pdfs_leaf_def(x):
+        if callable(x):
+            return True
+        if isinstance(x, tuple):
+            if all(isinstance(elem, jnp.ndarray) for elem in x):
+                return True
+        return False
+
     beta_samples = vi_sample_func(
         variational_parameters[0], variational_parameters[1], vi_sampling_prngkey
     )
@@ -63,7 +71,7 @@ def compute_neg_mc_elbo(
         add_idxs,
         is_leaf=lambda x: isinstance(x[0][0], int),
     )
-    add_pairs_unadjusted_axis: Tuple[Tuple[jnp.ndarray]]  = jax.tree_map(
+    add_pairs_unadjusted_axis: Tuple[Tuple[jnp.ndarray]] = jax.tree_map(
         lambda a, b: (*a, *b),
         add_vi_elements,
         add_dp_elements,
@@ -72,12 +80,12 @@ def compute_neg_mc_elbo(
     add_pairs_adjusted_axis = jax.tree.map(
         lambda x: x[:, jnp.newaxis] if x.ndim == 1 else x,
         add_pairs_unadjusted_axis,
-        is_leaf=lambda x: isinstance(x, jnp.ndarray)
+        is_leaf=lambda x: isinstance(x, jnp.ndarray),
     )
     add_results: Tuple[Tuple[jnp.ndarray]] = jax.tree.map(
         lambda x: jax.tree.reduce(add, x),
         add_pairs_adjusted_axis,
-        is_leaf=lambda x: isinstance(x[0], jnp.ndarray)
+        is_leaf=lambda x: isinstance(x[0], jnp.ndarray),
     )
     add_results_flattened: Tuple[jnp.ndarray] = tuple(
         jax.tree.flatten(add_results, is_leaf=lambda x: isinstance(x, jnp.ndarray))[0]
@@ -104,7 +112,7 @@ def compute_neg_mc_elbo(
         lambda f, args: f(*args),
         joint_log_pdf_funcs,
         selected_log_pdf_args,
-        is_leaf=lambda x: callable(x) or isinstance(x, jnp.ndarray),
+        is_leaf=lambda x: callable(x),
     )
     log_joint_pdfs_nd_array = jnp.column_stack(log_joint_pdfs)
     log_joint_pdfs_collapsed = jnp.sum(log_joint_pdfs_nd_array, axis=1)

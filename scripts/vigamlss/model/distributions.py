@@ -263,7 +263,7 @@ class Normal(Distribution):
         realizations: jnp.ndarray, loc: jnp.ndarray, scale: jnp.ndarray
     ) -> jnp.ndarray:
         """Not curried leaf log PDF computation."""
-        log_pdf = tfd.MultivariateNormalDiag(loc, jnp.diag(scale)).log_prob(
+        log_pdf = tfd.MultivariateNormalDiag(loc, scale).log_prob(
             realizations
         )
         return log_pdf
