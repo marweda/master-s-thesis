@@ -35,9 +35,8 @@ class FullCovarianceNormal(VariationalDistribution):
         super().__init__("full_covariance_normal", num_vi)
 
     def initialize_parameters(self) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        eye_matrix = jnp.eye(self.num_vi)
-        inv_sp_cholesky = TransformDiagonal(Softplus()).inverse(eye_matrix)
-        flattened_inv_sp_cholesky = fill_triangular_inverse(inv_sp_cholesky)
+        eye_matrix = jnp.eye(self.num_vi)*0.01
+        flattened_inv_sp_cholesky = fill_triangular_inverse(eye_matrix)
         return tuple([jnp.zeros(self.num_vi), stop_gradient(flattened_inv_sp_cholesky)])
 
     @staticmethod
@@ -69,9 +68,8 @@ class MeanFieldNormal(VariationalDistribution):
         super().__init__("diagonal_normal", num_vi)
 
     def initialize_parameters(self) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        variances = jnp.ones(self.num_vi)
-        inv_sp_variances = Softplus().inverse(variances)
-        return tuple([jnp.zeros(self.num_vi), stop_gradient(inv_sp_variances)])
+        variances = jnp.ones(self.num_vi)*0.01
+        return tuple([jnp.zeros(self.num_vi), stop_gradient(variances)])
 
     @staticmethod
     def sample(

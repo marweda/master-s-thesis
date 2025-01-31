@@ -1,5 +1,7 @@
+import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
+import tensorflow_probability.substrates.jax.bijectors as tfb
 
 tfd = tfp.distributions
 

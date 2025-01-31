@@ -929,3 +929,82 @@ class CustomGEV(Distribution):
         raise NotImplementedError(
             "Matrix multiplication is not supported for CustomGEV."
         )
+
+
+class CustomGEVFixedShape(Distribution):
+    """Custom Generalized Extreme Value distribution implementation."""
+
+    def __init__(
+        self,
+        rv_name: str,
+        location: LinearPredictor,
+        scale: LinearPredictor,
+        shape: float,
+        responses: jnp.ndarray,
+    ):
+        super().__init__(
+            rv_name,
+            {"location": location, "scale": scale},
+            responses=responses,
+        )
+
+        # CustomGPD specific
+        self.shape = shape
+        self.realization_transformation = [TransformationFunctions.identity]
+        self.parameter_transforms = [
+            TransformationFunctions.identity,  # location
+            TransformationFunctions.softplus,  # scale
+        ]
+
+        # Validate and setup distribution state using the validator
+        self.validator = CustomGEVDistributionValidator(self)
+        self._distribution_state = self.validator.validate_and_setup()
+        self.parameter_types = self.validator.parameter_types
+
+        # VI related
+        self.node = self.setup_node()
+
+        # Model building related
+        if self._distribution_state.is_likelihood:
+            self.model = ModelDAG(self.responses, self.node)
+
+    def setup_node(self) -> None:
+        """Setup node for GAMLSS case only."""
+        return self._setup_for_gamlss()
+
+    def _setup_for_gamlss(self) -> None:
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(partial(self._compute_gamlss_log_pdf, shape=self.shape), in_axes=(None, None, 0, 0)),
+            transformations=self.parameter_transforms,
+            parents=[
+                self.parameters["location"].node,
+                self.parameters["scale"].node,
+            ],
+        )
+
+    @staticmethod
+    def _compute_gamlss_log_pdf(
+        realizations: jnp.ndarray,
+        mask: jnp.ndarray,
+        location: jnp.ndarray,
+        scale: jnp.ndarray,
+        shape: jnp.ndarray,
+    ) -> jnp.ndarray:
+        """GAMLSS log PDF computation using CustomGPD."""
+        # Create CustomGPD instance
+        distribution = CustomTFDGEV(loc=location, scale=scale, shape=shape)
+
+        # Compute log probability
+        log_pdf = distribution.log_prob(realizations)
+
+        # Apply mask and sum
+        return jnp.sum(log_pdf * mask)
+
+    def __add__(self, other):
+        raise NotImplementedError("Addition operation is not supported for CustomGEV.")
+
+    def __rmatmul__(self, other):
+        raise NotImplementedError(
+            "Matrix multiplication is not supported for CustomGEV."
+        )

@@ -12,7 +12,11 @@ from .node import Node
 from ..svi.variational_distributions import VariationalDistribution
 from ..svi.svi_core import core_svi_optimization
 from ..svi.svi_utils.minibatching import prepare_mini_batching
-from ..svi.svi_utils.misc_preperations import prepare_vi_dist, prepare_opt_state
+from ..svi.svi_utils.misc_preperations import (
+    prepare_vi_dist,
+    prepare_opt_state,
+    prepare_scheduler,
+)
 
 
 class DAGSharedInfoProvider:
@@ -458,6 +462,8 @@ class ModelDAG:
         clip_min_max_enabled: bool,
         zero_nans_enabled: bool,
         prng_key: PRNGKey,
+        scheduler_type: str,
+        **kwargs,
     ) -> dict:
         """
         Runs SVI optimization for the model.
@@ -484,11 +490,15 @@ class ModelDAG:
                 self.responses, self.bigX, epochs, mb_size, mb_prngkey
             )
         )
+        num_iterations = len(mb_pointers)
+        optax_scheduler = prepare_scheduler(
+            scheduler_type=scheduler_type, lr=lr, total_steps=num_iterations, **kwargs
+        )
 
         init_opt_state, prepared_optimizer = prepare_opt_state(
             sgd_method=optimizer,
-            lr=lr,
             init_vi_parameters=init_vi_parameters,
+            optax_scheduler=optax_scheduler,
             max_norm=max_norm,
             clip_min_max_enabled=clip_min_max_enabled,
             zero_nans_enabled=zero_nans_enabled,

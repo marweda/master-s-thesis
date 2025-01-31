@@ -10,6 +10,7 @@ from .distributions import (
     CustomGPD,
     CustomGEVDistributionValidator,
     CustomGEV,
+    CustomGEVFixedShape,
     ParameterType,
     DistributionState,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "CustomGPD",
     "CustomGEVDistributionValidator",
     "CustomGEV",
+    "CustomGEVFixedShape",
     "Node",
     "ModelDAG",
     "DAGSharedInfoProvider",
