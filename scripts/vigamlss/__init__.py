@@ -1,10 +1,17 @@
 from .data_preperation import DataPreperator
-from .model.distributions import Normal, Gamma, DegenerateNormal, CustomGPD, CustomGEV, CustomGEVFixedShape
+from .model.distributions import (
+    Normal,
+    Gamma,
+    DegenerateNormal,
+    CustomGPD,
+    CustomGEV,
+    CustomGEVFixedShape,
+    HalfCauchy,
+)
 from .svi.variational_distributions import (
     VariationalDistribution,
     FullCovarianceNormal,
     MeanFieldNormal,
-    HalfCauchy
 )
 
 __all__ = [
