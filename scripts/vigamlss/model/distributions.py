@@ -476,7 +476,8 @@ class Gamma(Distribution):
     ) -> jnp.ndarray:
         """Not curried leaf log PDF computation."""
         log_pdf = tfd.Gamma(concentration, rate).log_prob(realizations)
-        log_det_jacobian = Softplus().forward_log_det_jacobian(realizations)
+        #  -inverse_log_det_jacobian=forward_log_det_jacobian
+        log_det_jacobian = -Softplus().forward_log_det_jacobian(realizations)
         return log_pdf + log_det_jacobian
 
     def __add__(self, other):
