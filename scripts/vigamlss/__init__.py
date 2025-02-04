@@ -14,6 +14,7 @@ __all__ = [
     "CustomGPD",
     "CustomGEV",
     "CustomGEVFixedShape",
+    "HalfCauchy",
     "VariationalDistribution",
     "FullCovarianceNormal",
     "MeanFieldNormal",

@@ -263,9 +263,7 @@ class Normal(Distribution):
         realizations: jnp.ndarray, loc: jnp.ndarray, scale: jnp.ndarray
     ) -> jnp.ndarray:
         """Not curried leaf log PDF computation."""
-        log_pdf = tfd.MultivariateNormalDiag(loc, scale).log_prob(
-            realizations
-        )
+        log_pdf = tfd.MultivariateNormalDiag(loc, scale).log_prob(realizations)
         return log_pdf
 
     def __add__(self, other):
@@ -975,7 +973,10 @@ class CustomGEVFixedShape(Distribution):
     def _setup_for_gamlss(self) -> None:
         return Node(
             name=self.rv_name,
-            log_pdf=vmap(partial(self._compute_gamlss_log_pdf, shape=self.shape), in_axes=(None, None, 0, 0)),
+            log_pdf=vmap(
+                partial(self._compute_gamlss_log_pdf, shape=self.shape),
+                in_axes=(None, None, 0, 0),
+            ),
             transformations=self.parameter_transforms,
             parents=[
                 self.parameters["location"].node,
@@ -1007,4 +1008,182 @@ class CustomGEVFixedShape(Distribution):
     def __rmatmul__(self, other):
         raise NotImplementedError(
             "Matrix multiplication is not supported for CustomGEV."
+        )
+
+
+class HalfCauchyDistributionValidator:
+    """Handles parameter validation and state management specifically for HalfCauchy distributions."""
+
+    def __init__(self, distribution):
+        self.distribution = distribution
+        self.parameter_types = {}
+        self.distribution_state = None
+
+    def validate_and_setup(self):
+        """Main entry point for validation and state setup."""
+        self.parameter_types = {
+            name: self._set_parameter_type(param)
+            for name, param in self.distribution.parameters.items()
+        }
+        self._validate_parameters()
+        self.distribution_state = self._set_distribution_state()
+        self._validate_likelihood_related_parameters()
+        return self.distribution_state
+
+    @staticmethod
+    def _set_parameter_type(param) -> ParameterType:
+        """Determine the type of a parameter."""
+        parameter_type = ParameterType()
+        if hasattr(param, "node_type"):
+            if param.node_type == "LinearPredictor":
+                raise ValueError(
+                    "HalfCauchy cannot have LinearPredictor parameters as it cannot be a likelihood."
+                )
+            elif param.node_type == "Distribution":
+                parameter_type.is_randomvariable = True
+                return parameter_type
+        elif isinstance(param, jnp.ndarray):
+            parameter_type.is_array = True
+            return parameter_type
+        raise ValueError(f"Invalid parameter type: {type(param)}")
+
+    def _validate_parameters(self) -> None:
+        """Validate all parameters and their relationships."""
+        scale_param = self.distribution.parameters["scale"]
+        distribution_size = self.distribution.size
+
+        # Check if scale's size matches the distribution's size
+        if hasattr(scale_param, "size"):
+            if scale_param.size != distribution_size:
+                raise ValueError(
+                    f"Scale parameter size {scale_param.size} does not match distribution size {distribution_size}"
+                )
+        elif isinstance(scale_param, jnp.ndarray):
+            if scale_param.shape[0] != distribution_size:
+                raise ValueError(
+                    f"Scale array size {scale_param.shape[0]} does not match distribution size {distribution_size}"
+                )
+        else:
+            # Handle scalar scale parameter
+            if distribution_size != 1:
+                raise ValueError(
+                    f"Scale is a scalar but distribution size is {distribution_size}"
+                )
+
+        # Validate prior requirements
+        param_types = list(self.parameter_types.values())
+        has_rv = any(pt.is_randomvariable for pt in param_types)
+        all_rv = all(pt.is_randomvariable for pt in param_types)
+        if has_rv and not all_rv:
+            raise NotImplementedError(
+                "For simplicity, only priors are supported whose parameters are either all random variables or none."
+            )
+
+    def _set_distribution_state(self) -> DistributionState:
+        """Setup distribution state based on parameter types."""
+        distribution_state = DistributionState()
+        parameter_types = self.parameter_types.values()
+
+        all_rv = all(pt.is_randomvariable for pt in parameter_types)
+        all_leaf = all(pt.is_array for pt in parameter_types)
+
+        if all_rv:
+            distribution_state.is_inner_prior = True
+        elif all_leaf:
+            distribution_state.is_leaf_prior = True
+
+        return distribution_state
+
+    def _validate_likelihood_related_parameters(self):
+        """Validate likelihood-related parameters."""
+        if self.distribution.responses is not None:
+            raise ValueError(
+                "Responses must not be provided for HalfCauchy as it cannot be a likelihood."
+            )
+        if self.distribution_state.is_likelihood:
+            raise ValueError("HalfCauchy cannot be a likelihood.")
+
+
+class HalfCauchy(Distribution):
+    """HalfCauchy distribution implementation with fixed loc=0.0."""
+
+    def __init__(
+        self,
+        rv_name: str,
+        scale: Union[jnp.ndarray, Distribution],
+        size: int,
+    ):
+        self.loc = jnp.zeros(size)
+
+        if size != scale.size:
+            raise ValueError(
+                f"Scale parameter size {scale.size} does not match inferred size {size}"
+            )
+
+        super().__init__(rv_name, {"scale": scale}, size)
+
+        # HalfCauchy specific
+        self.realization_transformation = [TransformationFunctions.softplus]
+
+        # Validate and setup distribution state using the validator
+        self.validator = HalfCauchyDistributionValidator(self)
+        self._distribution_state = self.validator.validate_and_setup()
+        self.parameter_types = self.validator.parameter_types
+
+        # VI related
+        self.node = self.setup_node()
+
+        # Model building related
+        if self._distribution_state.is_likelihood:
+            raise ValueError("HalfCauchy cannot be a likelihood.")
+
+    def setup_node(self) -> Node:
+        if self._distribution_state.is_inner_prior:
+            return self._setup_for_inner_prior()
+        elif self._distribution_state.is_leaf_prior:
+            return self._setup_for_leaf_prior()
+        else:
+            raise NotImplementedError(
+                "HalfCauchy can only be used as inner or leaf prior."
+            )
+
+    def _setup_for_inner_prior(self) -> Node:
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(self._compute_prior_log_pdf, in_axes=(0, 0)),
+            local_dim=self.size,
+            transformations=self.realization_transformation,
+            parents=[self.parameters["scale"].node],
+        )
+
+    def _setup_for_leaf_prior(self) -> Node:
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(
+                partial(
+                    self._compute_prior_log_pdf,
+                    scale=self.parameters["scale"],
+                ),
+                in_axes=(0,),
+            ),
+            local_dim=self.size,
+            transformations=self.realization_transformation,
+        )
+
+    @staticmethod
+    def _compute_prior_log_pdf(
+        realizations: jnp.ndarray, scale: jnp.ndarray
+    ) -> jnp.ndarray:
+        """Compute the log PDF accounting for fixed loc=0.0."""
+        log_pdf = tfd.HalfCauchy(loc=0.0, scale=scale).log_prob(realizations)
+        #  -inverse_log_det_jacobian=forward_log_det_jacobian
+        log_det_jacobian = -Softplus().inverse_log_det_jacobian(realizations)
+        return log_pdf + log_det_jacobian
+
+    def __add__(self, other):
+        raise NotImplementedError("Addition operation is not supported for HalfCauchy.")
+
+    def __rmatmul__(self, other):
+        raise NotImplementedError(
+            "Matrix multiplication is not supported for HalfCauchy."
         )

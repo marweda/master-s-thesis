@@ -37,6 +37,8 @@ __all__ = [
     "CustomGEVDistributionValidator",
     "CustomGEV",
     "CustomGEVFixedShape",
+    "HalfCauchyDistributionValidator",
+    "HalfCauchy",
     "Node",
     "ModelDAG",
     "DAGSharedInfoProvider",
