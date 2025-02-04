@@ -127,17 +127,17 @@ def prepare_mini_batching(
     sorted_mini_batches, sorted_padding_masks, missing_data = (
         create_mini_batch_pointers(len(responses), epochs, batch_size, prng_key)
     )
+    if missing_data > 0:
+        prng_key, subkey = jax.random.split(prng_key)
+        random_indices = jax.random.permutation(subkey, len(responses))[:missing_data]
+        responses_padding = responses[random_indices]
+        design_matrices_padding = design_matrix[random_indices]
+    else:
+        responses_padding = responses
+        design_matrices_padding = design_matrix
 
-    # Prepare padding data
-    responses_padding = responses[:missing_data]
     responses_padded = pad_array(responses, responses_padding)
-
-    # Create functions for padding design matrices
-    get_padding = lambda x: x[:missing_data]
-    design_matrices_padding = get_padding(design_matrix)
-
-    pad_design_matrix = lambda x, y: pad_array(x, y)
-    design_matrix_padded = pad_design_matrix(design_matrix, design_matrices_padding)
+    design_matrix_padded = pad_array(design_matrix, design_matrices_padding)
 
     return (
         sorted_mini_batches,
