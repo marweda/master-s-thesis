@@ -11,6 +11,8 @@ from .distributions import (
     CustomGEVDistributionValidator,
     CustomGEV,
     CustomGEVFixedShape,
+    HalfCauchyDistributionValidator,
+    HalfCauchy,
     ParameterType,
     DistributionState,
 )

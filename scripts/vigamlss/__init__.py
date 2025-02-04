@@ -4,6 +4,7 @@ from .svi.variational_distributions import (
     VariationalDistribution,
     FullCovarianceNormal,
     MeanFieldNormal,
+    HalfCauchy
 )
 
 __all__ = [
