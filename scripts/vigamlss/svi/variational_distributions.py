@@ -58,7 +58,7 @@ class FullCovarianceNormal(VariationalDistribution):
     ) -> jnp.ndarray:
         variational_lower_triangle = fill_triangular(variational_scale_tril)
         mvn_tril = MultivariateNormalTriL(variational_loc, variational_lower_triangle)
-        return jnp.sum(mvn_tril.log_prob(samples))
+        return mvn_tril.log_prob(samples)
 
 
 class MeanFieldNormal(VariationalDistribution):
@@ -88,4 +88,4 @@ class MeanFieldNormal(VariationalDistribution):
         variational_diag_scale: jnp.ndarray,
     ) -> jnp.ndarray:
         mvn_diag = MultivariateNormalDiag(variational_loc, variational_diag_scale)
-        return jnp.sum(mvn_diag.log_prob(samples))
+        return mvn_diag.log_prob(samples)
