@@ -23,14 +23,6 @@ def compute_neg_mc_elbo(
     vi_sample_func: Callable,
     vi_log_pdf_func: Callable,
 ) -> float:
-    def log_joint_pdfs_leaf_def(x):
-        if callable(x):
-            return True
-        if isinstance(x, tuple):
-            if all(isinstance(elem, jnp.ndarray) for elem in x):
-                return True
-        return False
-
     beta_samples = vi_sample_func(
         variational_parameters[0], variational_parameters[1], vi_sampling_prngkey
     )
