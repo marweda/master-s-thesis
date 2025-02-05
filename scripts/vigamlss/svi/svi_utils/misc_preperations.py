@@ -32,11 +32,27 @@ def clip_min_max() -> optax.GradientTransformation:
     return optax.GradientTransformation(init_fn, update_fn)
 
 
+import optax
+import jax.numpy as jnp
+
+def warmup_constant_schedule(init_value: float, peak_value: float, warmup_steps: int) -> optax.Schedule:
+    """
+    Returns a schedule that linearly increases the scalar from init_value to peak_value
+    over warmup_steps, then remains constant at peak_value for all subsequent steps.
+    """
+    def schedule(step: int) -> float:
+        step = jnp.asarray(step, dtype=jnp.float32)
+        warmup_steps_f = jnp.asarray(warmup_steps, dtype=jnp.float32)
+        warmup_value = init_value + (peak_value - init_value) * (step / warmup_steps_f)
+        return jnp.where(step < warmup_steps, warmup_value, peak_value)
+    return schedule
+
 def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs):
     """Returns a learning rate scheduler based on the specified type.
 
     Args:
-        scheduler_type: Either 'constant', 'step', or 'warmup_cosine_decay'
+        scheduler_type: Either 'constant', 'step', 'warmup_cosine_decay', 'warmup_constant',
+                        or 'cosine_decay'
         lr: Base learning rate (peak value)
         total_steps: Total number of training steps
         **kwargs: Additional parameters needed for the scheduler:
@@ -45,7 +61,14 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
                 - drop_magnitude: Factor by which to drop the LR
             For 'warmup_cosine_decay' scheduler:
                 - warmup_fraction: Fraction of total steps for warmup phase
-                - end_value: Final learning rate (default: 0.0)
+                - end_value: Final learning rate (default: 1e-7)
+                - exponent: Cosine decay exponent (default: 1.0)
+                - init_value: Initial learning rate before warmup (default: 1e-7)
+            For 'warmup_constant' scheduler:
+                - warmup_fraction: Fraction of total steps for warmup phase
+                - init_value: Initial learning rate before warmup (default: 1e-7)
+            For 'cosine_decay' scheduler:
+                - alpha: Minimum learning rate multiplier (default: 0.0)
                 - exponent: Cosine decay exponent (default: 1.0)
 
     Returns:
@@ -53,7 +76,7 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
     """
     if scheduler_type == "constant":
         return optax.constant_schedule(lr)
-    
+
     elif scheduler_type == "warmup_cosine_decay":
         # Validate required parameters
         required = ["warmup_fraction"]
@@ -79,8 +102,23 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
             warmup_steps=warmup_steps,
             decay_steps=total_steps,
             end_value=end_value,
-            exponent=exponent
+            exponent=exponent,
         )
+
+    elif scheduler_type == "warmup_constant":
+        # New branch: linear warmup followed by a constant schedule.
+        required = ["warmup_fraction"]
+        if any(key not in kwargs for key in required):
+            missing = [key for key in required if key not in kwargs]
+            raise ValueError(
+                f"Missing required parameters for warmup_constant scheduler: {missing}"
+            )
+        warmup_fraction = kwargs["warmup_fraction"]
+        if not 0 <= warmup_fraction < 1:
+            raise ValueError("warmup_fraction must be in [0, 1)")
+        warmup_steps = int(total_steps * warmup_fraction)
+        init_value = kwargs.get("init_value", 1e-7)
+        return warmup_constant_schedule(init_value=init_value, peak_value=lr, warmup_steps=warmup_steps)
 
     elif scheduler_type == "step":
         # Validate required parameters
@@ -113,8 +151,17 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
 
         return optax.piecewise_constant_schedule(lr, boundaries_and_scales)
 
+    elif scheduler_type == "cosine_decay":
+        # Optional parameters for cosine decay
+        alpha = kwargs.get("alpha", 0.0)
+        exponent = kwargs.get("exponent", 1.0)
+        return optax.cosine_decay_schedule(
+            init_value=lr, decay_steps=total_steps, alpha=alpha, exponent=exponent
+        )
+
     else:
         raise ValueError(f"Unknown scheduler type: {scheduler_type}")
+
 
 
 def prepare_opt_state(
