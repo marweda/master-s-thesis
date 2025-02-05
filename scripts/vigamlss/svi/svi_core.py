@@ -108,8 +108,7 @@ def compute_neg_mc_elbo(
     )
     log_joint_pdfs_nd_array = jnp.column_stack(log_joint_pdfs)
     log_joint_pdfs_collapsed = jnp.sum(log_joint_pdfs_nd_array, axis=1)
-    sum_log_joint_pdfs = jnp.sum(log_joint_pdfs_collapsed)
-    elbo = sum_log_joint_pdfs - log_q_pdf
+    elbo = log_joint_pdfs_collapsed - log_q_pdf
     return -jnp.mean(elbo)
 
 
