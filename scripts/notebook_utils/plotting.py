@@ -80,7 +80,7 @@ def plot_elbo(
 
     plt.tight_layout()
 
-    if file_name is not None:
+    if file_name and save_dir is not None:
         full_file_path = os.path.join(save_dir, file_name) if save_dir else file_name
         plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
@@ -272,7 +272,7 @@ def plot_synthetic_data(
     plt.tight_layout()
 
     # Save the plot as an SVG if file_name is provided.
-    if file_name is not None:
+    if file_name and save_dir is not None:
         base, _ = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
         full_file_path = (
@@ -364,7 +364,7 @@ def plot_true_predicted_comparison(
     ax.legend(fontsize=10, loc="best")
     plt.tight_layout()
 
-    if file_name is not None:
+    if file_name and save_dir is not None:
         base, _ = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
         full_file_path = (
