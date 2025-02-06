@@ -8,6 +8,12 @@ import pandas as pd
 import seaborn as sns
 
 
+REGRESSION_COLORPALETTE = ["#4CAF50", "#2196F3", "#424242"]
+TRUEPARAM_COLORPALETTE = ["#57a7a8", "#506eaf", "#b04fa4"]
+PREDPARAM_COLORPALETTE = ["#00FFED", "#0055FF", "#FF00A5"]
+ELBO_COLOR = "#2C3E50"
+
+
 def plot_elbo(
     num_iterations,
     elbo_values,
