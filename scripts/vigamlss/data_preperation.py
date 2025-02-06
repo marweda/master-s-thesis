@@ -214,7 +214,6 @@ class DataPreparator:
             name=name,
             matrix=constrained_design_matrix,
             size=constrained_design_matrix.shape[1],
-            K=constrained_penalty,
         )
         self.K = constrained_penalty
 
