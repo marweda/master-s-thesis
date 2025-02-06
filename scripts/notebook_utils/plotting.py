@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
+import pandas as pd
 import seaborn as sns
 
 
@@ -22,10 +23,12 @@ def plot_elbo(
     final_percentage,
     save_dir: str = None,
     file_name=None,
+    apply_ma: tuple = (False, False, False),
+    window: int = None,
 ):
     """
     Plots the ELBO over iterations along with two zoomed-in plots for the first initial_percentage
-    and last final_percentage of iterations.
+    and last final_percentage of iterations, with optional moving averages.
 
     Parameters:
         num_iterations: int
@@ -42,17 +45,34 @@ def plot_elbo(
             Directory path where the plot will be saved. If None, the plot is not saved.
         file_name: Optional[str], optional
             Name of the file to save the plot (including extension). If provided, saves as SVG.
+        apply_ma: tuple of three booleans, optional
+            Flags to apply moving average to the main plot, first zoom, and last zoom respectively.
+        window: int, optional
+            Window size for the moving average. Required if any element in apply_ma is True.
     """
     sns.set_theme(style="whitegrid")
 
-    # Create a figure with GridSpec: the top row (row 0) will be the main plot;
-    # the bottom row (row 1) is split into two columns for the zoomed-in plots.
+    # Validate parameters
+    if len(apply_ma) != 3:
+        raise ValueError("apply_ma must be a tuple of three booleans.")
+    if any(apply_ma) and window is None:
+        raise ValueError("If any apply_ma is True, window must be provided.")
+    if window is not None and window < 1:
+        raise ValueError("window must be a positive integer.")
+
+    # Create figure with GridSpec
     fig = plt.figure(figsize=(10, 6))
     gs = gridspec.GridSpec(nrows=2, ncols=2, height_ratios=[2, 1])
 
+    # Main plot
     ax_main = fig.add_subplot(gs[0, :])
     sns.lineplot(x=range(num_iterations), y=elbo_values, ax=ax_main, color=elbo_color)
-    ax_main.set_title("ELBO over Iterations", fontsize=15)
+    title_main = "ELBO over Iterations"
+    if apply_ma[0]:
+        ma_main = pd.Series(elbo_values).rolling(window=window).mean()
+        sns.lineplot(x=range(num_iterations), y=ma_main, ax=ax_main, color=elbo_color)
+        title_main += f" with MA-Window of {window}"
+    ax_main.set_title(title_main, fontsize=15)
     ax_main.set_xlabel("Iteration", fontsize=13)
     ax_main.set_ylabel("ELBO", fontsize=13)
 
@@ -63,41 +83,42 @@ def plot_elbo(
 
     # First zoomed plot
     ax_first = fig.add_subplot(gs[1, 0])
-    sns.lineplot(
-        x=range(num_first), y=elbo_values[:num_first], ax=ax_first, color=elbo_color
-    )
-    ax_first.set_title(
-        f"First {initial_percentage*100:.0f}% of Iterations", fontsize=13
-    )
+    data_first = elbo_values[:num_first]
+    sns.lineplot(x=range(num_first), y=data_first, ax=ax_first, color=elbo_color)
+    title_first = f"First {initial_percentage*100:.0f}% of Iterations"
+    if apply_ma[1]:
+        ma_first = pd.Series(data_first).rolling(window=window).mean()
+        sns.lineplot(x=range(num_first), y=ma_first, ax=ax_first, color=elbo_color)
+        title_first += f" with MA-Window of {window}"
+    ax_first.set_title(title_first, fontsize=13)
     ax_first.set_xlabel("Iteration", fontsize=12)
     ax_first.set_ylabel("ELBO", fontsize=12)
 
     # Second zoomed plot
     ax_last = fig.add_subplot(gs[1, 1])
-    sns.lineplot(
-        x=range(start_last, num_iterations),
-        y=elbo_values[start_last:],
-        ax=ax_last,
-        color=elbo_color,
-    )
-    ax_last.set_title(f"Last {final_percentage*100:.0f}% of Iterations", fontsize=13)
+    data_last = elbo_values[start_last:]
+    x_last = range(start_last, num_iterations)
+    sns.lineplot(x=x_last, y=data_last, ax=ax_last, color=elbo_color)
+    title_last = f"Last {final_percentage*100:.0f}% of Iterations"
+    if apply_ma[2]:
+        ma_last = pd.Series(data_last).rolling(window=window).mean()
+        sns.lineplot(x=x_last, y=ma_last, ax=ax_last, color=elbo_color)
+        title_last += f" with MA-Window of {window}"
+    ax_last.set_title(title_last, fontsize=13)
     ax_last.set_xlabel("Iteration", fontsize=12)
     ax_last.set_ylabel("ELBO", fontsize=12)
 
     plt.tight_layout()
 
+    # Save and show
     if (file_name is None) != (save_dir is None):
-        # This condition is True if exactly one of the two is provided.
-        raise ValueError(
-            "For saving, both a file name and a save directory must be provided."
-        )
+        raise ValueError("Both file_name and save_dir must be provided to save the plot.")
     elif file_name and save_dir:
-        # Both file_name and save_dir are provided; proceed with saving.
-        base, _ = os.path.splitext(file_name)
+        os.makedirs(save_dir, exist_ok=True)
+        base, ext = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
-        full_file_path = os.path.join(save_dir, file_name_svg)
-        plt.savefig(full_file_path, bbox_inches="tight", format="svg")
-        print(f"Plot saved to {full_file_path}")
+        plt.savefig(os.path.join(save_dir, file_name_svg), bbox_inches='tight', format='svg')
+        print(f"Plot saved to {os.path.join(save_dir, file_name_svg)}")
 
     plt.show()
 
