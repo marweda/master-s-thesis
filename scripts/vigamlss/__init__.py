@@ -1,4 +1,4 @@
-from .data_preperation import DataPreperator
+from .data_preperation import DataPreparator
 from .utils.transformations import TransformationFunctions
 from .model.distributions import (
     Normal,
@@ -17,7 +17,7 @@ from .svi.variational_distributions import (
 
 __all__ = [
     "TransformationFunctions",
-    "DataPreperator",
+    "DataPreparator",
     "Normal",
     "Gamma",
     "DegenerateNormal",

@@ -156,7 +156,7 @@ class PSpline:
         return X_const, K_const
 
 
-class DataPreperator:
+class DataPreparator:
     """Prepare data for model fitting."""
 
     def __init__(
@@ -174,39 +174,53 @@ class DataPreperator:
         self.standardize = standardize
         self.kwargs = kwargs
 
-        if self.basis_transformation not in ["pspline", "identity"]:
+        self._validate_parameters()
+
+        if self.standardize:
+            self._standardize_data()
+
+        if self.basis_transformation == "pspline":
+            self._create_pspline_design_matrix(name)
+        elif self.intercept:
+            self._create_intercept_design_matrix(name)
+
+    def _validate_parameters(self) -> None:
+        """Validate input parameters."""
+        valid_transformations = ["pspline", "identity"]
+        if self.basis_transformation not in valid_transformations:
             raise ValueError(
                 f"Invalid basis transformation: {self.basis_transformation}"
             )
         if self.basis_transformation == "pspline" and self.intercept:
             raise ValueError("Intercept not supported with P-spline basis")
 
-        if self.standardize:
-            self.scaler = StandardScaler()
-            self.data = self.scaler.fit_transform(self.data)
+    def _standardize_data(self) -> None:
+        """Standardize the data using StandardScaler."""
+        self.scaler = StandardScaler()
+        self.data = self.scaler.fit_transform(self.data)
 
-        if self.intercept:
-            # Reshape data to 2D if it's 1D
-            if self.data.ndim == 1:
-                data_2d = self.data.reshape(-1, 1)
-            else:
-                data_2d = self.data
+    def _create_intercept_design_matrix(self, name: str) -> None:
+        """Create design matrix with an intercept column."""
+        data_2d = self.data.reshape(-1, 1) if self.data.ndim == 1 else self.data
+        design_matrix = jnp.hstack([jnp.ones((data_2d.shape[0], 1)), data_2d])
+        self.design_matrix = DesignMatrix(
+            name=name, matrix=design_matrix, size=design_matrix.shape[1]
+        )
 
-            designmatrix = jnp.hstack([jnp.ones((data_2d.shape[0], 1)), data_2d])
-            self.design_matrix = DesignMatrix(
-                name=name, matrix=designmatrix, size=designmatrix.shape[1]
-            )
-
-        if self.basis_transformation == "pspline":
-            bsplinebasis = BSplineBasis(**self.kwargs).transform(self.data)
-            constrained_designmatrix, constrained_penalty = PSpline(bsplinebasis)()
-
-            self.design_matrix = DesignMatrix(
-                name=name,
-                matrix=constrained_designmatrix,
-                size=constrained_designmatrix.shape[1],
-                K=constrained_penalty,
-            )
+    def _create_pspline_design_matrix(self, name: str) -> None:
+        """Create P-spline design matrix and penalty matrix."""
+        bspline_basis = BSplineBasis(**self.kwargs).transform(self.data)
+        constrained_design_matrix, constrained_penalty = PSpline(bspline_basis)()
+        self.design_matrix = DesignMatrix(
+            name=name,
+            matrix=constrained_design_matrix,
+            size=constrained_design_matrix.shape[1],
+            K=constrained_penalty,
+        )
+        self.K = constrained_penalty
 
     def __call__(self):
+        """Return design matrix and penalty matrix (if P-spline)."""
+        if self.basis_transformation == "pspline":
+            return self.design_matrix, self.K
         return self.design_matrix
