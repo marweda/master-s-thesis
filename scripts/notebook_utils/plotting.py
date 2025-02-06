@@ -320,6 +320,7 @@ def plot_data(
     scatter_xlabel: str,
     scatter_ylabel: str,
     scatter_title: str,
+    figsize=(12,6),
     file_name: str = None,
     save_dir: str = None,
 ):
@@ -345,7 +346,7 @@ def plot_data(
             Directory path to save the plot. Uses current directory if None.
     """
     sns.set_theme(style="whitegrid")
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=figsize)
 
     sns.scatterplot(x=X, y=Y, alpha=0.8, s=15, color=scatterplot_color, ax=ax)
     ax.set_xlabel(scatter_xlabel)
