@@ -4,7 +4,7 @@ import os
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import pandas as pd
+import numpy as np
 import seaborn as sns
 
 
@@ -88,7 +88,9 @@ def plot_elbo(
 
     if (file_name is None) != (save_dir is None):
         # This condition is True if exactly one of the two is provided.
-        raise ValueError("For saving, both a file name and a save directory must be provided.")
+        raise ValueError(
+            "For saving, both a file name and a save directory must be provided."
+        )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
@@ -101,62 +103,62 @@ def plot_elbo(
 
 
 def plot_regression_results(
-    scatter_x,
-    scatter_y,
-    line_x,
-    regression_y,
-    lower_hdi_bound,
-    upper_hdi_bound,
-    hdi_alpha,
-    palette,
-    scatter_label,
-    regression_label,
-    interval_label,
-    xlabel,
-    ylabel,
-    title,
+    scatter_x: jnp.ndarray,
+    scatter_y: jnp.ndarray,
+    x_pred: jnp.ndarray,
+    pred_mean: jnp.ndarray,
+    lower_hdi_bound: np.ndarray,
+    upper_hdi_bound: np.ndarray,
+    hdi_alpha: float,
+    regression_colorpalette: list[str],
+    scatter_label: str,
+    regression_label: str,
+    hdi_label: str,
+    xlabel: str,
+    ylabel: str,
+    title: str,
     fig_size=(12, 7),
     save_dir: str = None,
     file_name=None,
 ):
     """
-    Plots regression results including scatter data, regression line, and HDI interval.
+    Plots regression results including observed data, a regression line, and the HDI interval.
 
     Parameters:
-        scatter_x: array-like
-            X-values of the observed data points.
-        scatter_y: array-like
-            Y-values of the observed data points.
-        line_x: array-like
-            X-values for the regression line and HDI intervals.
-        regression_y: array-like
-            Predicted Y-values of the regression line.
-        lower_hdi_bound: array-like
-            Lower bounds of the Highest Density Interval (HDI).
-        upper_hdi_bound: array-like
-            Upper bounds of the Highest Density Interval (HDI).
-        hdi_alpha: float
-            Transparency level (0-1) for the HDI shaded region.
-        palette: list[str]
-            List of colors in the order [scatter_color, regression_line_color, hdi_color].
-        scatter_label: str
-            Legend label for the scatter plot.
-        regression_label: str
-            Legend label for the regression line.
-        interval_label: str
-            Legend label for the HDI interval.
-        xlabel: str
+        scatter_x (jnp.ndarray):
+            Array of x-values for the observed data points.
+        scatter_y (jnp.ndarray):
+            Array of y-values for the observed data points.
+        x_pred (jnp.ndarray):
+            Array of x-values used for generating predictions.
+        pred_mean (jnp.ndarray):
+            Array of predicted mean values corresponding to x_pred.
+        lower_hdi_bound (np.ndarray):
+            Array representing the lower bounds of the Highest Density Interval (HDI).
+        upper_hdi_bound (np.ndarray):
+            Array representing the upper bounds of the Highest Density Interval (HDI).
+        hdi_alpha (float):
+            Transparency level (between 0 and 1) for the HDI shaded region.
+        regression_colorpalette (list[str]):
+            List of color strings in the order [scatter_color, regression_line_color, hdi_color].
+        scatter_label (str):
+            Label for the scatter plot legend.
+        regression_label (str):
+            Label for the regression line legend.
+        hdi_label (str):
+            Label for the HDI interval legend.
+        xlabel (str):
             Label for the x-axis.
-        ylabel: str
+        ylabel (str):
             Label for the y-axis.
-        title: str
+        title (str):
             Title of the plot.
-        fig_size: Tuple[int, int], optional
-            Figure dimensions (width, height). Default is (12, 7).
-        save_dir: Optional[str], optional
+        fig_size (tuple[int, int], optional):
+            Dimensions of the figure in inches as (width, height). Defaults to (12, 7).
+        save_dir (Optional[str], optional):
             Directory path to save the plot. If None, the plot is not saved.
-        file_name: Optional[str], optional
-            Filename to save the plot. Saves as SVG if provided.
+        file_name (Optional[str], optional):
+            Filename for saving the plot (saves as SVG if provided). Defaults to None.
     """
     sns.set_style("whitegrid")
     fig, ax = plt.subplots(figsize=fig_size)
@@ -164,32 +166,44 @@ def plot_regression_results(
     sns.scatterplot(
         x=scatter_x,
         y=scatter_y,
-        color=palette[0],
+        color=regression_colorpalette[0],
         label=scatter_label,
         alpha=0.7,
         ax=ax,
     )
 
     sns.lineplot(
-        x=line_x,
-        y=regression_y,
-        color=palette[1],
+        x=x_pred,
+        y=pred_mean,
+        color=regression_colorpalette[1],
         label=regression_label,
         linewidth=2.2,
         ax=ax,
     )
 
     ax.fill_between(
-        line_x,
+        x_pred,
         lower_hdi_bound,
         upper_hdi_bound,
-        color=palette[2],
+        color=regression_colorpalette[2],
         alpha=hdi_alpha,
-        label=interval_label,
+        label=hdi_label,
     )
 
-    sns.lineplot(x=line_x, y=lower_hdi_bound, color=palette[2], ax=ax, alpha=hdi_alpha)
-    sns.lineplot(x=line_x, y=upper_hdi_bound, color=palette[2], ax=ax, alpha=hdi_alpha)
+    sns.lineplot(
+        x=x_pred,
+        y=lower_hdi_bound,
+        color=regression_colorpalette[2],
+        ax=ax,
+        alpha=hdi_alpha,
+    )
+    sns.lineplot(
+        x=x_pred,
+        y=upper_hdi_bound,
+        color=regression_colorpalette[2],
+        ax=ax,
+        alpha=hdi_alpha,
+    )
 
     ax.legend(fontsize=10, loc="upper left")
     ax.set_xlabel(xlabel, fontsize=13)
@@ -200,7 +214,9 @@ def plot_regression_results(
 
     if (file_name is None) != (save_dir is None):
         # This condition is True if exactly one of the two is provided.
-        raise ValueError("For saving, both a file name and a save directory must be provided.")
+        raise ValueError(
+            "For saving, both a file name and a save directory must be provided."
+        )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
@@ -283,7 +299,9 @@ def plot_synthetic_data(
 
     if (file_name is None) != (save_dir is None):
         # This condition is True if exactly one of the two is provided.
-        raise ValueError("For saving, both a file name and a save directory must be provided.")
+        raise ValueError(
+            "For saving, both a file name and a save directory must be provided."
+        )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
@@ -344,12 +362,14 @@ def plot_data(
             full_file_path = os.path.join(save_dir, file_name_svg)
         else:
             full_file_path = file_name_svg
-        plt.savefig(full_file_path, bbox_inches='tight', format='svg')
+        plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
 
     if (file_name is None) != (save_dir is None):
         # This condition is True if exactly one of the two is provided.
-        raise ValueError("For saving, both a file name and a save directory must be provided.")
+        raise ValueError(
+            "For saving, both a file name and a save directory must be provided."
+        )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
@@ -441,7 +461,9 @@ def plot_true_predicted_comparison(
 
     if (file_name is None) != (save_dir is None):
         # This condition is True if exactly one of the two is provided.
-        raise ValueError("For saving, both a file name and a save directory must be provided.")
+        raise ValueError(
+            "For saving, both a file name and a save directory must be provided."
+        )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
