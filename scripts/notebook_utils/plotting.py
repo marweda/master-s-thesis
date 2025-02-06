@@ -20,7 +20,7 @@ def plot_elbo(
     elbo_color,
     initial_percentage,
     final_percentage,
-    save_dir=None,
+    save_dir: str = None,
     file_name=None,
 ):
     """
@@ -86,12 +86,16 @@ def plot_elbo(
 
     plt.tight_layout()
 
-    if file_name and save_dir is not None:
-        full_file_path = os.path.join(save_dir, file_name) if save_dir else file_name
+    if (file_name is None) != (save_dir is None):
+        # This condition is True if exactly one of the two is provided.
+        raise ValueError("For saving, both a file name and a save directory must be provided.")
+    elif file_name and save_dir:
+        # Both file_name and save_dir are provided; proceed with saving.
+        base, _ = os.path.splitext(file_name)
+        file_name_svg = base + ".svg"
+        full_file_path = os.path.join(save_dir, file_name_svg)
         plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
-    elif file_name != save_dir is not None:
-        raise ValueError("For saving both a file name and a save dir has to be given.")
 
     plt.show()
 
@@ -112,7 +116,7 @@ def plot_regression_results(
     ylabel,
     title,
     fig_size=(12, 7),
-    save_dir=None,
+    save_dir: str = None,
     file_name=None,
 ):
     """
@@ -194,16 +198,16 @@ def plot_regression_results(
 
     plt.tight_layout()
 
-    if file_name and save_dir is not None:
+    if (file_name is None) != (save_dir is None):
+        # This condition is True if exactly one of the two is provided.
+        raise ValueError("For saving, both a file name and a save directory must be provided.")
+    elif file_name and save_dir:
+        # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
-        full_file_path = (
-            os.path.join(save_dir, file_name_svg) if save_dir else file_name_svg
-        )
+        full_file_path = os.path.join(save_dir, file_name_svg)
         plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
-    elif file_name != save_dir is not None:
-        raise ValueError("For saving both a file name and a save dir has to be given.")
 
     plt.show()
 
@@ -220,8 +224,8 @@ def plot_synthetic_data(
     line_xlabel: str,
     line_title: str,
     line_labels: list,
-    file_name: str,
-    save_dir=None,
+    file_name: str = None,
+    save_dir: str = None,
 ):
     """
     Plots synthetic data as a scatter plot and compares multiple lines (e.g., true vs predicted).
@@ -277,17 +281,82 @@ def plot_synthetic_data(
 
     plt.tight_layout()
 
-    # Save the plot as an SVG if file_name is provided.
-    if file_name and save_dir is not None:
+    if (file_name is None) != (save_dir is None):
+        # This condition is True if exactly one of the two is provided.
+        raise ValueError("For saving, both a file name and a save directory must be provided.")
+    elif file_name and save_dir:
+        # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
-        full_file_path = (
-            os.path.join(save_dir, file_name_svg) if save_dir else file_name_svg
-        )
+        full_file_path = os.path.join(save_dir, file_name_svg)
         plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
-    elif file_name != save_dir is not None:
-        raise ValueError("For saving both a file name and a save dir has to be given.")
+
+    plt.show()
+
+
+def plot_data(
+    X: jnp.ndarray,
+    Y: jnp.ndarray,
+    scatterplot_color: str,
+    scatter_xlabel: str,
+    scatter_ylabel: str,
+    scatter_title: str,
+    file_name: str = None,
+    save_dir: str = None,
+):
+    """
+    Plots data as a scatter plot.
+
+    Parameters:
+        X: jnp.ndarray
+            1D array of input values.
+        Y: jnp.ndarray
+            1D array of target/output values.
+        scatterplot_color: str
+            Color for the scatter plot points.
+        scatter_xlabel: str
+            X-axis label for the scatter plot.
+        scatter_ylabel: str
+            Y-axis label for the scatter plot.
+        scatter_title: str
+            Title for the scatter plot.
+        file_name: str
+            Filename to save the plot (saves as SVG).
+        save_dir: Optional[str], optional
+            Directory path to save the plot. Uses current directory if None.
+    """
+    sns.set_theme(style="whitegrid")
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    sns.scatterplot(x=X, y=Y, alpha=0.8, s=15, color=scatterplot_color, ax=ax)
+    ax.set_xlabel(scatter_xlabel)
+    ax.set_ylabel(scatter_ylabel)
+    ax.set_title(scatter_title)
+
+    plt.tight_layout()
+
+    # Save the plot as an SVG
+    if file_name:
+        base, _ = os.path.splitext(file_name)
+        file_name_svg = base + ".svg"
+        if save_dir is not None:
+            full_file_path = os.path.join(save_dir, file_name_svg)
+        else:
+            full_file_path = file_name_svg
+        plt.savefig(full_file_path, bbox_inches='tight', format='svg')
+        print(f"Plot saved to {full_file_path}")
+
+    if (file_name is None) != (save_dir is None):
+        # This condition is True if exactly one of the two is provided.
+        raise ValueError("For saving, both a file name and a save directory must be provided.")
+    elif file_name and save_dir:
+        # Both file_name and save_dir are provided; proceed with saving.
+        base, _ = os.path.splitext(file_name)
+        file_name_svg = base + ".svg"
+        full_file_path = os.path.join(save_dir, file_name_svg)
+        plt.savefig(full_file_path, bbox_inches="tight", format="svg")
+        print(f"Plot saved to {full_file_path}")
     plt.show()
 
 
@@ -370,14 +439,14 @@ def plot_true_predicted_comparison(
     ax.legend(fontsize=10, loc="best")
     plt.tight_layout()
 
-    if file_name and save_dir is not None:
+    if (file_name is None) != (save_dir is None):
+        # This condition is True if exactly one of the two is provided.
+        raise ValueError("For saving, both a file name and a save directory must be provided.")
+    elif file_name and save_dir:
+        # Both file_name and save_dir are provided; proceed with saving.
         base, _ = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
-        full_file_path = (
-            os.path.join(save_dir, file_name_svg) if save_dir else file_name_svg
-        )
+        full_file_path = os.path.join(save_dir, file_name_svg)
         plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
-    elif file_name != save_dir is not None:
-        raise ValueError("For saving both a file name and a save dir has to be given.")
     plt.show()
