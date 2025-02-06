@@ -12,7 +12,6 @@ class DesignMatrix:
     name: str
     matrix: jnp.ndarray
     size: int
-    K: jnp.ndarray = field(default=None)
     node_type: str = field(default_factory=lambda: "DesignMatrix")
 
     def __post_init__(self):
