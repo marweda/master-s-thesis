@@ -259,6 +259,7 @@ def plot_synthetic_data(
     scatter_ylabel: str,
     scatter_title: str,
     line_xlabel: str,
+    line_ylabel: str,
     line_title: str,
     line_labels: list,
     file_name: str = None,
@@ -286,6 +287,8 @@ def plot_synthetic_data(
             Title for the scatter plot.
         line_xlabel: str
             X-axis label for the line plot.
+        line_ylabel: str
+            Y-axis label for the line plot.
         line_title: str
             Title for the line plot.
         line_labels: list
@@ -313,6 +316,7 @@ def plot_synthetic_data(
             ax=axs[1],
         )
     axs[1].set_xlabel(line_xlabel)
+    axs[1].set_ylabel(line_ylabel)
     axs[1].set_title(line_title)
     axs[1].legend()
 
