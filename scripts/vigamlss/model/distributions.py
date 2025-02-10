@@ -11,7 +11,7 @@ from tensorflow_probability.substrates.jax.bijectors import Softplus
 from .linear_predictor import LinearPredictor
 from .node import Node
 from .model_builder import ModelDAG
-from ..utils.custom_tf_distributions import CustomGPD, CustomGEV
+from ..utils.custom_tf_distributions import CustomGPD, CustomGEV, CustomALD
 from ..utils.transformations import TransformationFunctions
 
 
@@ -721,7 +721,7 @@ class GPDDistributionValidator:
 
 
 class GPD(Distribution):
-    """ Generalized Pareto Distribution implementation."""
+    """Generalized Pareto Distribution implementation."""
 
     def __init__(
         self,
@@ -1188,3 +1188,186 @@ class HalfCauchy(Distribution):
         raise NotImplementedError(
             "Matrix multiplication is not supported for HalfCauchy."
         )
+
+
+class ALDDistributionValidator:
+    """
+    Handles parameter validation and state management specifically for CustomALD distributions.
+
+    The ALD distribution has four parameters:
+      - loc: must be a LinearPredictor.
+      - scale: must be a LinearPredictor.
+      - tau: must be a constant (float) that lies in (0, 1).
+      - c: must be a constant (float) and positive.
+
+    In addition, since ALD is only allowed as a likelihood, responses must be provided
+    and no explicit size is allowed.
+    """
+
+    def __init__(self, distribution):
+        self.distribution = distribution
+        self.parameter_types: Dict[str, ParameterType] = {}
+        self.distribution_state: Optional[DistributionState] = None
+
+    def validate_and_setup(self):
+        # Set the type for each parameter.
+        self.parameter_types = {
+            name: self._set_parameter_type(name, param)
+            for name, param in self.distribution.parameters.items()
+        }
+        self._validate_parameters()
+        self.distribution_state = self._set_distribution_state()
+        self._validate_likelihood_related_parameters()
+        return self.distribution_state
+
+    def _set_parameter_type(self, name: str, param) -> ParameterType:
+        parameter_type = ParameterType()
+        if name in ["loc", "scale"]:
+            # These must be LinearPredictor objects.
+            if hasattr(param, "node_type"):
+                if param.node_type == "LinearPredictor":
+                    parameter_type.is_linearpredictor = True
+                    return parameter_type
+                else:
+                    raise ValueError(
+                        f"{name} parameter must be a LinearPredictor for ALD."
+                    )
+            else:
+                raise ValueError(f"{name} parameter must be a LinearPredictor for ALD.")
+        elif name in ["tau", "c"]:
+            # These parameters must be constants (float).
+            if isinstance(param, float):
+                return parameter_type
+            else:
+                raise ValueError(f"{name} parameter must be a float for ALD.")
+        else:
+            raise ValueError(f"Unknown parameter '{name}' for ALD.")
+
+    def _validate_parameters(self) -> None:
+        tau_val = self.distribution.parameters["tau"]
+        c_val = self.distribution.parameters["c"]
+
+        if not (0 < tau_val < 1):
+            raise ValueError("`tau` must lie in (0, 1) for ALD.")
+        if not (c_val > 0):
+            raise ValueError("`c` must be positive for ALD.")
+
+    def _set_distribution_state(self) -> DistributionState:
+        # ALD is only supported as a likelihood.
+        distribution_state = DistributionState()
+        distribution_state.is_likelihood = True
+        return distribution_state
+
+    def _validate_likelihood_related_parameters(self):
+        # Likelihood distributions must have responses and must not have an explicit size.
+        if self.distribution.responses is None:
+            raise ValueError("Responses must be provided for ALD (likelihood).")
+        if self.distribution.size is not None:
+            raise ValueError(
+                "Size should not be provided for a likelihood distribution; it is implicitly determined by the responses."
+            )
+
+
+class ALD(Distribution):
+    """
+    Asymmetric Laplace Distribution (ALD) implementation as a likelihood.
+
+    Parameters:
+      - loc: a LinearPredictor for the location parameter.
+      - scale: a LinearPredictor for the positive scale parameter.
+      - tau: a float constant for the quantile level (must lie in (0, 1)).
+      - c: a float constant for the tuning parameter (must be positive).
+      - responses: observed responses.
+
+    The log-PDF is defined using a partially applied function that fixes the constants tau and c.
+    """
+
+    def __init__(
+        self,
+        rv_name: str,
+        loc: LinearPredictor,
+        scale: LinearPredictor,
+        tau: float,
+        c: float,
+        responses: jnp.ndarray,
+    ):
+        # Build the parameters dictionary.
+        super().__init__(
+            rv_name,
+            {"loc": loc, "scale": scale, "tau": tau, "c": c},
+            responses=responses,
+        )
+
+        # ALD-specific transformations:
+        self.realization_transformation = [TransformationFunctions.identity]
+        # Only loc and scale are predictors, so only these receive transformations.
+        self.parameter_transforms = [
+            TransformationFunctions.identity,  # for loc
+            TransformationFunctions.softplus,  # for scale
+        ]
+
+        # Validate and set up distribution state using the validator.
+        self.validator = ALDDistributionValidator(self)
+        self._distribution_state = self.validator.validate_and_setup()
+        self.parameter_types = self.validator.parameter_types
+
+        # VI-related: set up the node.
+        self.node = self.setup_node()
+
+        # Model building: if the distribution is a likelihood, create a ModelDAG.
+        if self._distribution_state.is_likelihood:
+            self.model = ModelDAG(self.responses, self.node)
+
+    def setup_node(self) -> Node:
+        return self._setup_for_gamlss()
+
+    def _setup_for_gamlss(self) -> Node:
+        """
+        Sets up a node with a GAMLSS log-PDF function.
+
+        The log-PDF function is partially applied with the fixed (constant) tau and c parameters.
+        Its signature after partial application is:
+            (realizations, mask, loc, scale)
+        """
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(
+                partial(
+                    self._compute_gamlss_log_pdf,
+                    tau=self.parameters["tau"],
+                    c=self.parameters["c"],
+                ),
+                in_axes=(None, None, 0, 0),
+            ),
+            transformations=self.parameter_transforms,
+            parents=[
+                self.parameters["loc"].node,
+                self.parameters["scale"].node,
+            ],
+        )
+
+    @staticmethod
+    def _compute_gamlss_log_pdf(
+        realizations: jnp.ndarray,
+        mask: jnp.ndarray,
+        loc: jnp.ndarray,
+        scale: jnp.ndarray,
+        tau: float,
+        c: float,
+    ) -> jnp.ndarray:
+        """
+        Computes the GAMLSS log-PDF for ALD.
+
+        The CustomALD distribution defines the log density as:
+            log f(x) = log(tau*(1-tau)) - log(scale) - ρ₍τ, c₎((x - loc)/scale)
+        where ρ₍τ, c₎ is the modified check function.
+        """
+        distribution = CustomALD(loc=loc, scale=scale, tau=tau, c=c)
+        log_pdf = distribution.log_prob(realizations)
+        return jnp.sum(log_pdf * mask)
+
+    def __add__(self, other):
+        raise NotImplementedError("Addition operation is not supported for ALD.")
+
+    def __rmatmul__(self, other):
+        raise NotImplementedError("Matrix multiplication is not supported for ALD.")

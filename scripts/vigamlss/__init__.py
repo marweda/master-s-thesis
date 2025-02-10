@@ -7,6 +7,7 @@ from .model.distributions import (
     GPD,
     GEV,
     GEVFixedShape,
+    ALD,
     HalfCauchy,
 )
 from .svi.variational_distributions import (
@@ -24,6 +25,7 @@ __all__ = [
     "GPD",
     "GEV",
     "GEVFixedShape",
+    "ALD",
     "HalfCauchy",
     "VariationalDistribution",
     "FullCovarianceNormal",
