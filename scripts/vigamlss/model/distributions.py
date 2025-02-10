@@ -11,7 +11,7 @@ from tensorflow_probability.substrates.jax.bijectors import Softplus
 from .linear_predictor import LinearPredictor
 from .node import Node
 from .model_builder import ModelDAG
-from ..utils.custom_tf_distributions import CustomTFDGPD, CustomTFDGEV
+from ..utils.custom_tf_distributions import CustomGPD, CustomGEV
 from ..utils.transformations import TransformationFunctions
 
 
@@ -670,7 +670,7 @@ class DegenerateNormal(Distribution):
         return LinearPredictor(other, self, operation="@")
 
 
-class CustomGPDDistributionValidator:
+class GPDDistributionValidator:
     """Handles parameter validation and state management specifically for CustomGPD distributions."""
 
     def __init__(self, distribution):
@@ -720,8 +720,8 @@ class CustomGPDDistributionValidator:
         return distribution_state
 
 
-class CustomGPD(Distribution):
-    """Custom Generalized Pareto Distribution implementation."""
+class GPD(Distribution):
+    """ Generalized Pareto Distribution implementation."""
 
     def __init__(
         self,
@@ -746,7 +746,7 @@ class CustomGPD(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = CustomGPDDistributionValidator(self)
+        self.validator = GPDDistributionValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -783,7 +783,7 @@ class CustomGPD(Distribution):
     ) -> jnp.ndarray:
         """GAMLSS log PDF computation using CustomGPD."""
         # Create CustomGPD instance
-        distribution = CustomTFDGPD(loc=location, scale=scale, shape=shape)
+        distribution = CustomGPD(loc=location, scale=scale, shape=shape)
 
         # Compute log probability
         log_pdf = distribution.log_prob(realizations)
@@ -800,7 +800,7 @@ class CustomGPD(Distribution):
         )
 
 
-class CustomGEVDistributionValidator:
+class GEVDistributionValidator:
     """Handles parameter validation and state management specifically for the CustomGEV distribution."""
 
     def __init__(self, distribution):
@@ -850,8 +850,8 @@ class CustomGEVDistributionValidator:
         return distribution_state
 
 
-class CustomGEV(Distribution):
-    """Custom Generalized Extreme Value distribution implementation."""
+class GEV(Distribution):
+    """Generalized Extreme Value distribution implementation."""
 
     def __init__(
         self,
@@ -876,7 +876,7 @@ class CustomGEV(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = CustomGEVDistributionValidator(self)
+        self.validator = GEVDistributionValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -913,7 +913,7 @@ class CustomGEV(Distribution):
     ) -> jnp.ndarray:
         """GAMLSS log PDF computation using CustomGPD."""
         # Create CustomGPD instance
-        distribution = CustomTFDGEV(loc=location, scale=scale, shape=shape)
+        distribution = CustomGEV(loc=location, scale=scale, shape=shape)
 
         # Compute log probability
         log_pdf = distribution.log_prob(realizations)
@@ -930,7 +930,7 @@ class CustomGEV(Distribution):
         )
 
 
-class CustomGEVFixedShape(Distribution):
+class GEVFixedShape(Distribution):
     """Custom Generalized Extreme Value distribution implementation."""
 
     def __init__(
@@ -956,7 +956,7 @@ class CustomGEVFixedShape(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = CustomGEVDistributionValidator(self)
+        self.validator = GEVDistributionValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -995,7 +995,7 @@ class CustomGEVFixedShape(Distribution):
     ) -> jnp.ndarray:
         """GAMLSS log PDF computation using CustomGPD."""
         # Create CustomGPD instance
-        distribution = CustomTFDGEV(loc=location, scale=scale, shape=shape)
+        distribution = CustomGEV(loc=location, scale=scale, shape=shape)
 
         # Compute log probability
         log_pdf = distribution.log_prob(realizations)

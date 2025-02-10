@@ -1,12 +1,15 @@
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
-import tensorflow_probability.substrates.jax.bijectors as tfb
+from tensorflow_probability.substrates.jax.internal import reparameterization
+import tensorflow as tf
 
 tfd = tfp.distributions
 
 
-class CustomTFDGPD(tfd.GeneralizedPareto):
+class CustomGPD(tfd.GeneralizedPareto):
+    """This code was given to me by my supervisor."""
+
     def __init__(
         self,
         loc,
@@ -114,7 +117,9 @@ class CustomTFDGPD(tfd.GeneralizedPareto):
         )
 
 
-class CustomTFDGEV(tfd.GeneralizedExtremeValue):
+class CustomGEV(tfd.GeneralizedExtremeValue):
+    """This code was given to me by my supervisor."""
+
     def __init__(
         self,
         loc,
