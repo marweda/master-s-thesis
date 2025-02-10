@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
-from tensorflow_probability.substrates.jax.internal import reparameterization
+from tensorflow_probability.python.internal import reparameterization
 import tensorflow as tf
 
 tfd = tfp.distributions
@@ -309,7 +309,7 @@ class CustomALD(tfd.Distribution):
             )
             super().__init__(
                 dtype=dtype,
-                reparameterization_type=reparameterization.REPARAMETERIZED,
+                reparameterization_type=reparameterization.FULLY_REPARAMETERIZED,
                 validate_args=validate_args,
                 allow_nan_stats=allow_nan_stats,
                 parameters=parameters,
