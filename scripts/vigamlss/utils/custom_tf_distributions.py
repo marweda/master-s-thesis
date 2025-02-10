@@ -278,7 +278,7 @@ class CustomALD(tfd.Distribution):
         scale,
         tau,
         c,
-        validate_args=True,
+        validate_args=False,
         allow_nan_stats=True,
         name="AsymmetricLaplace",
     ):
