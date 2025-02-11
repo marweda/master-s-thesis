@@ -1349,7 +1349,7 @@ class ALD(Distribution):
     ) -> jnp.ndarray:
         """Computes the GAMLSS log-PDF for ALD.
         """
-        distribution = CustomALD(loc=loc, scale=scale, tau=tau, c=c)
+        distribution = CustomALD(loc=loc, scale=scale, tau=tau)
         log_pdf = distribution.log_prob(realizations)
         return jnp.sum(log_pdf * mask)
 
