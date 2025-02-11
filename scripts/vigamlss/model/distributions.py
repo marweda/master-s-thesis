@@ -1198,7 +1198,6 @@ class ALDDistributionValidator:
       - loc: must be a LinearPredictor.
       - scale: must be a LinearPredictor.
       - tau: must be a constant (float) that lies in (0, 1).
-      - c: must be a constant (float) and positive.
 
     In addition, since ALD is only allowed as a likelihood, responses must be provided
     and no explicit size is allowed.
@@ -1245,12 +1244,9 @@ class ALDDistributionValidator:
 
     def _validate_parameters(self) -> None:
         tau_val = self.distribution.parameters["tau"]
-        c_val = self.distribution.parameters["c"]
 
         if not (0 < tau_val < 1):
             raise ValueError("`tau` must lie in (0, 1) for ALD.")
-        if not (c_val > 0):
-            raise ValueError("`c` must be positive for ALD.")
 
     def _set_distribution_state(self) -> DistributionState:
         # ALD is only supported as a likelihood.
@@ -1276,10 +1272,9 @@ class ALD(Distribution):
       - loc: a LinearPredictor for the location parameter.
       - scale: a LinearPredictor for the positive scale parameter.
       - tau: a float constant for the quantile level (must lie in (0, 1)).
-      - c: a float constant for the tuning parameter (must be positive).
       - responses: observed responses.
 
-    The log-PDF is defined using a partially applied function that fixes the constants tau and c.
+    The log-PDF is defined using a partially applied function that fixes the constant tau.
     """
 
     def __init__(
@@ -1288,13 +1283,12 @@ class ALD(Distribution):
         loc: LinearPredictor,
         scale: LinearPredictor,
         tau: float,
-        c: float,
         responses: jnp.ndarray,
     ):
         # Build the parameters dictionary.
         super().__init__(
             rv_name,
-            {"loc": loc, "scale": scale, "tau": tau, "c": c},
+            {"loc": loc, "scale": scale, "tau": tau},
             responses=responses,
         )
 
@@ -1325,7 +1319,7 @@ class ALD(Distribution):
         """
         Sets up a node with a GAMLSS log-PDF function.
 
-        The log-PDF function is partially applied with the fixed (constant) tau and c parameters.
+        The log-PDF function is partially applied with the fixed (constant) tau parameter.
         Its signature after partial application is:
             (realizations, mask, loc, scale)
         """
@@ -1335,7 +1329,6 @@ class ALD(Distribution):
                 partial(
                     self._compute_gamlss_log_pdf,
                     tau=self.parameters["tau"],
-                    c=self.parameters["c"],
                 ),
                 in_axes=(None, None, 0, 0),
             ),
@@ -1353,14 +1346,8 @@ class ALD(Distribution):
         loc: jnp.ndarray,
         scale: jnp.ndarray,
         tau: float,
-        c: float,
     ) -> jnp.ndarray:
-        """
-        Computes the GAMLSS log-PDF for ALD.
-
-        The CustomALD distribution defines the log density as:
-            log f(x) = log(tau*(1-tau)) - log(scale) - ρ₍τ, c₎((x - loc)/scale)
-        where ρ₍τ, c₎ is the modified check function.
+        """Computes the GAMLSS log-PDF for ALD.
         """
         distribution = CustomALD(loc=loc, scale=scale, tau=tau, c=c)
         log_pdf = distribution.log_prob(realizations)
