@@ -329,7 +329,7 @@ class CustomALD(tfd.Distribution):
         #     ),
         # )
         check_val = jnp.where(
-            z <= 0,
+            z < 0,
             (self._tau - 1),
             self._tau
         )
