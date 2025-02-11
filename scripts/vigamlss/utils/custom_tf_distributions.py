@@ -338,29 +338,13 @@ class CustomALD(tfd.Distribution):
 
     def _mean(self):
         """Mean of the ALD.
-
-        Notes:
-            Yu & Moyeed have written it down for loc, scale = 0.
-            However, the ALD belongs to the loc-scale family so that
-            this method's ALD mean formula can easily be derived via a
-            loc-scale-family-reparameterization.
         """
-        return self._loc + self._scale * (1.0 - 2.0 * self._tau) / (
-            self._tau * (1.0 - self._tau)
-        )
+        raise NotImplementedError("Mean is not implemented for AsymmetricLaplace.")
 
     def _variance(self):
         """Variance of the ALD.
-
-        Notes:
-            Yu & Moyeed have written it down for loc, scale = 0.
-            However, the ALD belongs to the loc-scale family so that
-            this method's ALD variance formula can easily be derived via a
-            loc-scale-family-reparameterization.
         """
-        numerator = 1.0 - 2.0 * self._tau + 2.0 * (self._tau**2)
-        denominator = (self._tau**2) * ((1.0 - self._tau) ** 2)
-        return (numerator / denominator) * (self._scale**2)
+        raise NotImplementedError("Mean is not implemented for AsymmetricLaplace.")
 
     def _stddev(self):
         """Standard deviation of the ALD."""
