@@ -1,6 +1,6 @@
 import jax.numpy as jnp
+import jax.random as random
 from tensorflow_probability.substrates import jax as tfp
-from tensorflow_probability.python.internal import reparameterization
 import tensorflow as tf
 
 tfd = tfp.distributions
@@ -242,18 +242,6 @@ class CustomALD(tfd.Distribution):
       - loc: The location (or quantile) parameter, denoted by u.
       - scale: The positive scale parameter (scale > 0).
       - tau: The quantile level with (0 < tau < 1).
-      - c: The positive tuning parameter for the quadratic region.
-
-    The log probability density function is given by
-
-        log f(x) = log(tau*(1-tau)) - log(scale) - rho_(tau,c)((x - loc)/scale),
-
-    where the modified check function, rho_(tau,c)(z), is defined piecewise as
-
-      - if (x - loc)/scale < -c:       (tau - 1) * (2z + c),
-      - if -c <= (x - loc)/scale < 0:    (1 - tau) * z²/c,
-      - if 0 <= (x - loc)/scale < c:     tau * z²/c,
-      - if (x - loc)/scale >= c:         tau * (2z - c).
 
     This implementation supports broadcasting over the parameters.
 
@@ -263,13 +251,21 @@ class CustomALD(tfd.Distribution):
         With an Application to Return Level Estimation for U.S. Wind Gusts"
         (https://doi.org/10.1080/01621459.2018.1529596) where the ALD parameterization
         stems from Yu & Moyeed - "Bayesian quantile regression"
-        (https://doi.org/10.1016/S0167-7152(01)00124-9) and where the modified check
-        function stems from Oh, Lee, and Nychka -
+        (https://doi.org/10.1016/S0167-7152(01)00124-9) BUT WITHOUT the modified check
+        function from, but with the unmodified one, see Oh, Lee, and Nychka -
         "Fast Nonparametric Quantile Regression With Arbitrary Smoothing Methods"
-        (https://doi.org/10.1198/jcgs.2010.10063)
+        (https://doi.org/10.1198/jcgs.2010.10063), BECAUSE no numerical instabilities
+        have been observed using the unmodified one.
+        The unmodified one for the three parameter ALD is shown in
+        "A Three-Parameter Asymmetric Laplace
+        Distribution and Its Extension" by Yu, and Zhang 
+        (http://dx.doi.org/10.1080/03610920500199018)
 
-        There is an error regarding the modified check fcts. first case in Youngman.
+        There is an error regarding the modified check fctn. first case in Youngman.
         See Yu & Moyeed for the correct first case condition.
+
+        Methods were compared against:
+        https://cran.r-project.org/web/packages/ald/index.html
     """
 
     def __init__(
@@ -277,39 +273,28 @@ class CustomALD(tfd.Distribution):
         loc,
         scale,
         tau,
-        c,
         validate_args=False,
         allow_nan_stats=True,
         name="AsymmetricLaplace",
     ):
-        parameters = dict(loc=loc, scale=scale, tau=tau, c=c)
+        parameters = dict(loc=loc, scale=scale, tau=tau)
         with tf.name_scope(name) as name:
             # Determine a common dtype.
-            dtype = jnp.result_type(loc, scale, tau, c)
+            dtype = jnp.result_type(loc, scale, tau)
             # Convert inputs to JAX arrays.
             self._loc = jnp.asarray(loc, dtype=dtype)
             self._scale = jnp.asarray(scale, dtype=dtype)
             self._tau = jnp.asarray(tau, dtype=dtype)
-            self._c = jnp.asarray(c, dtype=dtype)
-
-            if validate_args:
-                if not jnp.all(self._scale > 0):
-                    raise ValueError("`scale` must be positive.")
-                if not jnp.all(self._c > 0):
-                    raise ValueError("`c` must be positive.")
-                if not jnp.all((self._tau > 0) & (self._tau < 1)):
-                    raise ValueError("`tau` must lie in (0, 1).")
 
             # Determine the broadcast shape for the parameters.
             self._broadcast_shape = jnp.broadcast_shapes(
                 jnp.shape(self._loc),
                 jnp.shape(self._scale),
                 jnp.shape(self._tau),
-                jnp.shape(self._c),
             )
             super().__init__(
                 dtype=dtype,
-                reparameterization_type=reparameterization.FULLY_REPARAMETERIZED,
+                reparameterization_type=tfd.FULLY_REPARAMETERIZED,
                 validate_args=validate_args,
                 allow_nan_stats=allow_nan_stats,
                 parameters=parameters,
@@ -321,33 +306,35 @@ class CustomALD(tfd.Distribution):
 
         For input `x`, the log density is computed as
 
-            log f(x) = log(tau*(1-tau)) - log(scale) - rho_(tau,c)((x - loc)/scale),
+            log f(x) = log(tau*(1-tau)) - log(scale) - rho_(tau)((x - loc)/scale),
 
-        where the modified check function rho_(tau,c)(z) is defined piecewise by
+        where the check function, rho_(tau)(z) with z=(x - loc)/scale, is defined piecewise as
 
-          - if z < -c:       (tau - 1) * (2z + c),
-          - if -c <= z < 0:  (1 - tau) * z²/c,
-          - if 0 <= z < c:   tau * z²/c,
-          - if z >= c:       tau * (2z - c),
-
-        with z = (x - loc) / scale.
+        - if z<0:     (tau-1)*z,
+        - if z>=0:    tau*z    
         """
         z = (x - self._loc) / self._scale
+        # Modified Check-function
+        # check_val = jnp.where(
+        #     z < -self._c,
+        #     (self._tau - 1.0) * (2.0 * z + self._c),
+        #     jnp.where(
+        #         z < 0.0,
+        #         (1.0 - self._tau) * (z**2) / self._c,
+        #         jnp.where(
+        #             z < self._c,
+        #             self._tau * (z**2) / self._c,
+        #             self._tau * (2.0 * z - self._c),
+        #         ),
+        #     ),
+        # )
         check_val = jnp.where(
-            z < -self._c,
-            (self._tau - 1.0) * (2.0 * z + self._c),
-            jnp.where(
-                z < 0.0,
-                (1.0 - self._tau) * (z**2) / self._c,
-                jnp.where(
-                    z < self._c,
-                    self._tau * (z**2) / self._c,
-                    self._tau * (2.0 * z - self._c),
-                ),
-            ),
+            z <= 0,
+            (self._tau - 1),
+            self._tau
         )
         log_normalizer = jnp.log(self._tau * (1.0 - self._tau)) - jnp.log(self._scale)
-        return log_normalizer - check_val
+        return log_normalizer - z * check_val
 
     def _mean(self):
         """Mean of the ALD.
@@ -368,7 +355,7 @@ class CustomALD(tfd.Distribution):
         Notes:
             Yu & Moyeed have written it down for loc, scale = 0.
             However, the ALD belongs to the loc-scale family so that
-            this method's ALD mean formula can easily be derived via a
+            this method's ALD variance formula can easily be derived via a
             loc-scale-family-reparameterization.
         """
         numerator = 1.0 - 2.0 * self._tau + 2.0 * (self._tau**2)
@@ -385,13 +372,30 @@ class CustomALD(tfd.Distribution):
     def _log_cdf(self, x):
         raise NotImplementedError("log CDF is not implemented for AsymmetricLaplace.")
 
-    def _quantile(self, p):
-        raise NotImplementedError(
-            "Quantile function is not implemented for AsymmetricLaplace."
+    def _quantile(self, p, lower_tail=True):
+        """Quantile function (inverse CDF) of the ALD taken 
+        from the paper "A Three-Parameter Asymmetric Laplace
+        Distribution and Its Extension" by Yu, and Zhang 
+        (http://dx.doi.org/10.1080/03610920500199018)
+        """
+        prob = p if lower_tail else (1 - p)
+        return jnp.where(
+            prob <= self._tau,
+            self._loc + (self._scale / (1 - self._tau)) * jnp.log(prob / self._tau),
+            self._loc - (self._scale / self._tau) * jnp.log((1 - prob) / (1 - self._tau))
         )
 
-    def _sample_n(self, n, seed=None):
-        raise NotImplementedError("Sampling is not implemented for AsymmetricLaplace.")
+    def _sample_n(self, n, seed):
+        """This sample method is taken from the paper "A Three-Parameter Asymmetric Laplace
+        Distribution and Its Extension" by Yu, and Zhang 
+        (http://dx.doi.org/10.1080/03610920500199018)
+        """
+        key1, key2 = random.split(seed)
+        batch_shape = self._broadcast_shape
+        u = tfd.Exponential(rate=1).sample((n, *batch_shape), key1)
+        v = tfd.Exponential(rate=1).sample((n, *batch_shape), key2)
+        ald_samples_standard = (u / self._tau) - (v / (1.0 - self._tau))
+        return self._loc + self._scale * ald_samples_standard
 
     def _batch_shape_tensor(self):
         return jnp.array(self._broadcast_shape, dtype=jnp.int32)
