@@ -210,7 +210,7 @@ def core_svi_optimization(
         optimizer=optimizer,
     )
 
-    jitted_update_step = jax.jit(curried_update_step)
+    # jitted_update_step = jax.jit(curried_update_step)
 
     xs = (mb_pointers, masks)
     carry = (
@@ -221,5 +221,10 @@ def core_svi_optimization(
         prng_key,
     )
 
-    final_carry, losses = jax.lax.scan(f=jitted_update_step, init=carry, xs=xs)
+    @jax.jit
+    def jitted_scan_loop(carry, xs):
+        return jax.lax.scan(f=curried_update_step, init=carry, xs=xs)
+
+    # final_carry, losses = jax.lax.scan(f=jitted_update_step, init=carry, xs=xs)
+    final_carry, losses = jitted_scan_loop(carry, xs)
     return final_carry, losses
