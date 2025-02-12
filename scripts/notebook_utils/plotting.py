@@ -25,6 +25,7 @@ def plot_elbo(
     file_name=None,
     apply_ma: tuple = (False, False, False),
     window: int = None,
+    tick_label_plain: Optional[list[bool]] = [False, False, False],
 ):
     """
     Plots the ELBO over iterations along with two zoomed-in plots for the first initial_percentage
@@ -49,6 +50,9 @@ def plot_elbo(
             Flags to apply moving average to the main plot, first zoom, and last zoom respectively.
         window: int, optional
             Window size for the moving average. Required if any element in apply_ma is True.
+        tick_label_plain: Optional[List[bool]];
+            If first element true, then tick label format of first plot will be plain, otherwise automatic.
+            Same for the other elements. Default: all false
     """
     sns.set_theme(style="whitegrid")
 
@@ -75,6 +79,8 @@ def plot_elbo(
     ax_main.set_title(title_main, fontsize=15)
     ax_main.set_xlabel("Iteration", fontsize=13)
     ax_main.set_ylabel("ELBO", fontsize=13)
+    if tick_label_plain[0]:
+        ax_main.ticklabel_format(style="plain", axis="y", useOffset=False)
 
     # Calculate ranges for zoomed plots
     num_first = max(1, int(num_iterations * initial_percentage))
@@ -93,6 +99,8 @@ def plot_elbo(
     ax_first.set_title(title_first, fontsize=13)
     ax_first.set_xlabel("Iteration", fontsize=12)
     ax_first.set_ylabel("ELBO", fontsize=12)
+    if tick_label_plain[1]:
+        ax_first.ticklabel_format(style="plain", axis="y", useOffset=False)
 
     # Second zoomed plot
     ax_last = fig.add_subplot(gs[1, 1])
@@ -108,16 +116,23 @@ def plot_elbo(
     ax_last.set_xlabel("Iteration", fontsize=12)
     ax_last.set_ylabel("ELBO", fontsize=12)
 
+    if tick_label_plain[2]:
+        ax_last.ticklabel_format(style="plain", axis="y", useOffset=False)
+
     plt.tight_layout()
 
     # Save and show
     if (file_name is None) != (save_dir is None):
-        raise ValueError("Both file_name and save_dir must be provided to save the plot.")
+        raise ValueError(
+            "Both file_name and save_dir must be provided to save the plot."
+        )
     elif file_name and save_dir:
         os.makedirs(save_dir, exist_ok=True)
         base, ext = os.path.splitext(file_name)
         file_name_svg = base + ".svg"
-        plt.savefig(os.path.join(save_dir, file_name_svg), bbox_inches='tight', format='svg')
+        plt.savefig(
+            os.path.join(save_dir, file_name_svg), bbox_inches="tight", format="svg"
+        )
         print(f"Plot saved to {os.path.join(save_dir, file_name_svg)}")
 
     plt.show()
@@ -345,7 +360,7 @@ def plot_data(
     scatter_xlabel: str,
     scatter_ylabel: str,
     scatter_title: str,
-    figsize=(12,6),
+    figsize=(12, 6),
     file_name: str = None,
     save_dir: str = None,
 ):
