@@ -13,6 +13,7 @@ REGRESSION_COLORPALETTE = ["#4CAF50", "#2196F3", "#424242"]
 TRUEPARAM_COLORPALETTE = ["#57a7a8", "#506eaf", "#b04fa4"]
 PREDPARAM_COLORPALETTE = ["#00FFED", "#0055FF", "#FF00A5"]
 ELBO_COLOR = "#2C3E50"
+EXCESS_COLOR = "#F44336"
 
 
 def plot_elbo(
@@ -155,10 +156,13 @@ def plot_regression_results(
     title: str,
     fig_size=(12, 7),
     save_dir: str = None,
-    file_name=None,
+    file_name: str = None,
+    excess_mask: Optional[jnp.ndarray] = None,
+    excess_color: Optional[str] = None,
 ):
     """
     Plots regression results including observed data, a regression line, and the HDI interval.
+    Optionally, highlights data points filtered by a mask in a specified red color.
 
     Parameters:
         scatter_x (jnp.ndarray):
@@ -195,10 +199,20 @@ def plot_regression_results(
             Directory path to save the plot. If None, the plot is not saved.
         file_name (Optional[str], optional):
             Filename for saving the plot (saves as SVG if provided). Defaults to None.
+        excess_mask (Optional[jnp.ndarray], optional):
+            Boolean mask array to filter data points for highlighting. Points where the mask is True
+            will be highlighted.
+        excess_color (Optional[str], optional):
+            Color string for the excess data points. If not provided, defaults to "#F44336", a red
+            that fits well with the palette.
+
+    Raises:
+        ValueError: If exactly one of file_name and save_dir is provided.
     """
     sns.set_style("whitegrid")
     fig, ax = plt.subplots(figsize=fig_size)
 
+    # Plot the observed data points
     sns.scatterplot(
         x=scatter_x,
         y=scatter_y,
@@ -208,6 +222,21 @@ def plot_regression_results(
         ax=ax,
     )
 
+    # If an excess_mask is provided, highlight those data points with excess_color
+    if excess_mask is not None:
+        if excess_color is None:
+            # Choose a fitting red color to complement the palette
+            excess_color = "#F44336"
+        sns.scatterplot(
+            x=scatter_x[excess_mask],
+            y=scatter_y[excess_mask],
+            color=excess_color,
+            label="Excess",  # Updated label for the legend
+            alpha=0.7,
+            ax=ax,
+        )
+
+    # Plot the regression line
     sns.lineplot(
         x=x_pred,
         y=pred_mean,
@@ -217,6 +246,7 @@ def plot_regression_results(
         ax=ax,
     )
 
+    # Plot the HDI shaded area
     ax.fill_between(
         x_pred,
         lower_hdi_bound,
@@ -226,6 +256,7 @@ def plot_regression_results(
         label=hdi_label,
     )
 
+    # Plot the boundaries of the HDI interval
     sns.lineplot(
         x=x_pred,
         y=lower_hdi_bound,
