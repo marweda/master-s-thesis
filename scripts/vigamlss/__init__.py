@@ -7,7 +7,7 @@ from .model.distributions import (
     DegenerateNormal,
     GPD,
     GEV,
-    GEVFixedShape,
+    CenteredGPD,
     ALD,
     HalfCauchy,
 )
@@ -25,7 +25,7 @@ __all__ = [
     "DegenerateNormal",
     "GPD",
     "GEV",
-    "GEVFixedShape",
+    "CenteredGPD",
     "ALD",
     "CustomALD",
     "HalfCauchy",
