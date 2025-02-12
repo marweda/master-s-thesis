@@ -443,7 +443,8 @@ class ModelDAG:
         results_dict = {
             "raw_loc_vi_parameters": raw_loc_vi_parameters_dict,
             "transformed_loc_vi_parameters": transformed_loc_vi_parameters_dict,
-            "vec_loc_vi_parameters": loc_vi_parameters,
+            "loc_vi_parameters_vec": loc_vi_parameters,
+            "chol_vi_vec": flattened_scale_vi_parameters,
             "scale_vi_matrix": unflattened_scale_vi_parameters,
             "losses": losses,
             "num_vi_parameters": num_vi_parameters,
