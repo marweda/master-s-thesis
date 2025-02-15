@@ -45,12 +45,25 @@ class StandardScaler:
         return self.transform(X)
 
 
-@dataclass
 class BSplineBasis:
     """B-spline basis configuration and computation."""
 
-    degree: int
-    num_knots: int
+    def __init__(
+        self,
+        degree: int,
+        num_knots: int,
+        user_knots: Optional[jnp.ndarray] = None,
+        use_quantile: bool = False,
+    ):
+        """
+        If user_knots is not None, those will be used directly.
+        Otherwise, knots are generated automatically from data.
+        """
+        self.degree = degree
+        self.num_knots = num_knots
+        self.user_knots = user_knots
+        self.use_quantile = use_quantile
+        self._knots_used: Optional[jnp.ndarray] = None  # Will store the final knots
 
     @property
     def num_basis_functions(self) -> int:
@@ -58,24 +71,55 @@ class BSplineBasis:
         return self.num_knots + self.degree - 1
 
     def transform(self, X: jnp.ndarray) -> jnp.ndarray:
-        """Transform input data using B-spline basis functions."""
-        knots = self._generate_knots(X)
+        """
+        Transform input data using B-spline basis functions.
+        If user_knots is provided, it overrides automatic knot generation.
+        """
+        if self.user_knots is not None:
+            knots = self.user_knots
+        else:
+            knots = self._generate_knots(X)
+
+        self._knots_used = knots
+
         Z = self._evaluate_all_bases(knots, X)
         return Z.T
 
     def _generate_knots(self, X: jnp.ndarray) -> jnp.ndarray:
         """Generate B-spline knots from data."""
-        x_min, x_max = X.min(), X.max()
-        interior_knots, step = jnp.linspace(x_min, x_max, self.num_knots, retstep=True)
+        x_min, x_max = jnp.min(X), jnp.max(X)
 
-        lower_knots = jnp.full(
-            self.degree, x_min - step * jnp.arange(self.degree, 0, -1)
-        )
-        upper_knots = jnp.full(
-            self.degree, x_max + step * jnp.arange(1, self.degree + 1)
-        )
+        if self.use_quantile:
+            # R's approach: inner knots are quantiles within x_min and x_max
+            # Compute positions: (1/(num_knots +1), ..., num_knots/(num_knots +1)) * 100%
+            percentiles = jnp.linspace(
+                100 / (self.num_knots + 1),
+                100 * self.num_knots / (self.num_knots + 1),
+                self.num_knots
+            )
+            interior_knots = jnp.percentile(X, percentiles)
+            interior_knots = jnp.clip(interior_knots, x_min, x_max)
 
-        return jnp.concatenate([lower_knots, interior_knots, upper_knots])
+            # Boundary knots are x_min and x_max, each repeated (degree +1) times
+            boundary_lower = jnp.full((self.degree + 1,), x_min)
+            boundary_upper = jnp.full((self.degree + 1,), x_max)
+
+            # Concatenate and sort to ensure correct order
+            knots = jnp.concatenate([boundary_lower, interior_knots, boundary_upper])
+            knots = jnp.sort(knots)
+        else:
+            # Existing equidistant code
+            interior_knots, step = jnp.linspace(
+                x_min, x_max, self.num_knots, retstep=True
+            )
+            step_lower = step_upper = step
+
+            lower_knots = x_min - step_lower * jnp.arange(self.degree, 0, -1)
+            upper_knots = x_max + step_upper * jnp.arange(1, self.degree + 1)
+
+            knots = jnp.concatenate([lower_knots, interior_knots, upper_knots])
+
+        return knots
 
     def _evaluate_all_bases(self, knots: jnp.ndarray, X: jnp.ndarray) -> jnp.ndarray:
         """Evaluate all B-spline basis functions."""
@@ -86,25 +130,25 @@ class BSplineBasis:
     def _evaluate_basis(
         self, knots: jnp.ndarray, j: int, X: jnp.ndarray
     ) -> jnp.ndarray:
-        """Evaluate B-spline basis function using Cox-de Boor recursion."""
+        """Evaluate a single B-spline basis function using Cox-de Boor recursion."""
 
-        def cox_de_boor(xi: float, j: int, d: int) -> float:
+        def cox_de_boor(xi: float, jj: int, d: int) -> float:
             """Cox-de Boor recursion formula implementation."""
             if d == 0:
-                return jnp.where((knots[j] <= xi) & (xi < knots[j + 1]), 1.0, 0.0)
+                return jnp.where((knots[jj] <= xi) & (xi < knots[jj + 1]), 1.0, 0.0)
 
             w1 = jnp.where(
-                knots[j] != knots[j - d],
-                (xi - knots[j - d]) / (knots[j] - knots[j - d]),
+                knots[jj] != knots[jj - d],
+                (xi - knots[jj - d]) / (knots[jj] - knots[jj - d]),
                 0.0,
             )
             w2 = jnp.where(
-                knots[j + 1] != knots[j + 1 - d],
-                (knots[j + 1] - xi) / (knots[j + 1] - knots[j + 1 - d]),
+                knots[jj + 1] != knots[jj + 1 - d],
+                (knots[jj + 1] - xi) / (knots[jj + 1] - knots[jj + 1 - d]),
                 0.0,
             )
 
-            return w1 * cox_de_boor(xi, j - 1, d - 1) + w2 * cox_de_boor(xi, j, d - 1)
+            return w1 * cox_de_boor(xi, jj - 1, d - 1) + w2 * cox_de_boor(xi, jj, d - 1)
 
         return vmap(lambda xi: cox_de_boor(xi, j, self.degree))(X)
 
@@ -114,22 +158,20 @@ class PSpline:
 
     def __init__(self, bspline_basis: jnp.ndarray, penalty_order: int = 2):
         """Initialize PSpline."""
+        # bspline_basis is a (n_samples, n_basis) design matrix
         self.bspline_basis = bspline_basis
         self.penalty_order = penalty_order
         self.penalty_matrix = self._create_penalty_matrix()
 
     def __call__(self) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Transform covariates and apply sum-to-zero constraint."""
-        # Apply sum-to-zero constraint
+        """
+        Apply the sum-to-zero constraint via a QR-based approach
+        and return (constrained_design_matrix, constrained_penalty).
+        """
         constrained_matrix, constrained_penalty = self._apply_sum_zero_constraint(
             self.bspline_basis
         )
-
         return constrained_matrix, constrained_penalty
-
-    def _transform_covariates(self, covariate: jnp.ndarray) -> jnp.ndarray:
-        """Transform covariates using P-spline basis."""
-        return self.bspline_basis.transform(covariate)
 
     def _create_penalty_matrix(self) -> jnp.ndarray:
         """Create difference penalty matrix."""
@@ -141,22 +183,25 @@ class PSpline:
         self, basis_matrix: jnp.ndarray
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Apply sum-to-zero constraint using QR decomposition."""
-        # Create constraint matrix
         C = jnp.ones((1, basis_matrix.shape[0])) @ basis_matrix
-
-        # Get null space basis
         Q = jnp.linalg.qr(C.T, mode="complete")[0]
         Z = Q[:, C.shape[0] :]
-
-        # Transform basis and penalty
         X_const = basis_matrix @ Z
         K_const = Z.T @ self.penalty_matrix @ Z
-
         return X_const, K_const
 
 
 class DataPreparator:
-    """Prepare data for model fitting."""
+    """Prepare data for model fitting.
+
+    - If basis_transformation='pspline', a B-spline basis with penalty is created.
+      The design matrix is automatically constrained to sum-to-zero (PSpline).
+    - If basis_transformation='identity', the raw data is used (optionally with intercept).
+    - If standardize=True, data is standardized before applying the basis transformation.
+
+    If 'return_knots' True, the __call__ method
+    will return the knots (user-supplied or automatically generated) as part of the result.
+    """
 
     def __init__(
         self,
@@ -167,10 +212,36 @@ class DataPreparator:
         standardize: bool,
         **kwargs,
     ):
+        """
+        Parameters
+        ----------
+        name : str
+            Name for the resulting design matrix.
+        data : jnp.ndarray
+            Input array of shape (n_samples,) or (n_samples, n_features).
+        basis_transformation : str
+            Either 'pspline' or 'identity'.
+        intercept : bool
+            If True, add an intercept column (not valid with 'pspline').
+        standardize : bool
+            If True, standardize the data before transformation.
+        **kwargs
+            Additional configuration:
+              - degree : int (for pspline)
+              - num_knots : int (for pspline)
+              - user_knots : Optional[jnp.ndarray]
+              - return_knots : bool
+            - use_quantile : bool (for pspline)
+        """
         self.data = data
         self.basis_transformation = basis_transformation
         self.intercept = intercept
         self.standardize = standardize
+
+        # Pop the special flags/parameters
+        self.user_knots = kwargs.pop("user_knots", None)
+        self.return_knots = kwargs.pop("return_knots", False)
+
         self.kwargs = kwargs
 
         self._validate_parameters()
@@ -178,13 +249,19 @@ class DataPreparator:
         if self.standardize:
             self._standardize_data()
 
+        # Build the design matrix
         if self.basis_transformation == "pspline":
             self._create_pspline_design_matrix(name)
         elif self.intercept:
+            # 'identity' transformation with an intercept
             self._create_intercept_design_matrix(name)
+        else:
+            # 'identity' transformation with no intercept
+            # we only do something if neither intercept nor pspline
+            # basically pass data as-is
+            self._create_identity_design_matrix(name)
 
     def _validate_parameters(self) -> None:
-        """Validate input parameters."""
         valid_transformations = ["pspline", "identity"]
         if self.basis_transformation not in valid_transformations:
             raise ValueError(
@@ -194,31 +271,73 @@ class DataPreparator:
             raise ValueError("Intercept not supported with P-spline basis")
 
     def _standardize_data(self) -> None:
-        """Standardize the data using StandardScaler."""
         self.scaler = StandardScaler()
         self.data = self.scaler.fit_transform(self.data)
 
+    def _create_identity_design_matrix(self, name: str) -> None:
+        # Just pass data as a design matrix
+        data_2d = self.data.reshape(-1, 1) if self.data.ndim == 1 else self.data
+        self.design_matrix = DesignMatrix(
+            name=name, matrix=data_2d, size=data_2d.shape[1]
+        )
+        self.K = None
+
     def _create_intercept_design_matrix(self, name: str) -> None:
-        """Create design matrix with an intercept column."""
         data_2d = self.data.reshape(-1, 1) if self.data.ndim == 1 else self.data
         design_matrix = jnp.hstack([jnp.ones((data_2d.shape[0], 1)), data_2d])
         self.design_matrix = DesignMatrix(
-            name=name, matrix=design_matrix, size=design_matrix.shape[1]
+            name=name,
+            matrix=design_matrix,
+            size=design_matrix.shape[1],
         )
+        self.K = None
 
     def _create_pspline_design_matrix(self, name: str) -> None:
-        """Create P-spline design matrix and penalty matrix."""
-        bspline_basis = BSplineBasis(**self.kwargs).transform(self.data)
-        constrained_design_matrix, constrained_penalty = PSpline(bspline_basis)()
+        # Build a B-spline with optional user_knots
+        bspline = BSplineBasis(
+            degree=self.kwargs["degree"],
+            num_knots=self.kwargs["num_knots"],
+            user_knots=self.user_knots,
+            use_quantile=self.kwargs.get("use_quantile", False),
+        )
+        bspline_matrix = bspline.transform(self.data)
+        self._knots_used = bspline._knots_used
+
+        constrained_matrix, constrained_penalty = PSpline(bspline_matrix)()
         self.design_matrix = DesignMatrix(
             name=name,
-            matrix=constrained_design_matrix,
-            size=constrained_design_matrix.shape[1],
+            matrix=constrained_matrix,
+            size=constrained_matrix.shape[1],
         )
         self.K = constrained_penalty
 
     def __call__(self):
-        """Return design matrix and penalty matrix (if P-spline)."""
+        """
+        Returns
+        -------
+        - If basis_transformation='pspline':
+            (design_matrix, penalty_matrix) or
+            (design_matrix, penalty_matrix, knots) if return_knots=True
+        - If basis_transformation='identity' (or used intercept):
+            design_matrix alone or
+            (design_matrix, None) if return_knots=True
+        """
         if self.basis_transformation == "pspline":
-            return self.design_matrix, self.K
-        return self.design_matrix
+            if self.return_knots:
+                # Return either the user-supplied knots (if provided)
+                # or the automatically generated ones
+                if self.user_knots is not None:
+                    actual_knots = self.user_knots
+                else:
+                    actual_knots = self._knots_used
+
+                return self.design_matrix, self.K, actual_knots
+            else:
+                return self.design_matrix, self.K
+        else:
+            # identity or intercept
+            if self.return_knots:
+                # We have no knots in this scenario, so return None
+                return self.design_matrix, None
+            else:
+                return self.design_matrix
