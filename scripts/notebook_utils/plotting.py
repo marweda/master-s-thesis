@@ -159,6 +159,9 @@ def plot_regression_results(
     file_name: str = None,
     excess_mask: Optional[jnp.ndarray] = None,
     excess_color: Optional[str] = None,
+    gpd_mean_line: Optional[jnp.ndarray] = None,
+    gpd_upper_hdi: Optional[jnp.ndarray] = None,
+    gpd_lower_hdi: Optional[jnp.ndarray] = None,
 ):
     """
     Plots regression results including observed data, a regression line, and the HDI interval.
@@ -205,6 +208,9 @@ def plot_regression_results(
         excess_color (Optional[str], optional):
             Color string for the excess data points. If not provided, defaults to "#F44336", a red
             that fits well with the palette.
+        gpd_mean_line (Optional[jnp.ndarray])
+        gpd_upper_hdi
+        gpd_lower_hdi
 
     Raises:
         ValueError: If exactly one of file_name and save_dir is provided.
@@ -272,6 +278,39 @@ def plot_regression_results(
         alpha=hdi_alpha,
     )
 
+    if gpd_mean_line is not None:
+        sns.lineplot(
+        x=x_pred,
+        y=gpd_mean_line,
+        color="pink",
+        ax=ax,
+        label="GPD mean",
+        )
+            # Plot the HDI shaded area
+        ax.fill_between(
+            x_pred,
+            gpd_upper_hdi,
+            gpd_lower_hdi,
+            color="blue",
+            alpha=0.1,
+            label="GPD HDI",
+        )
+            # Plot the boundaries of the HDI interval
+        sns.lineplot(
+            x=x_pred,
+            y=gpd_lower_hdi,
+            color="blue",
+            ax=ax,
+            alpha=0.1,
+        )
+        sns.lineplot(
+            x=x_pred,
+            y=gpd_upper_hdi,
+            color="blue",
+            ax=ax,
+            alpha=0.1,
+        )
+
     ax.legend(fontsize=10, loc="upper left")
     ax.set_xlabel(xlabel, fontsize=13)
     ax.set_ylabel(ylabel, fontsize=13)
@@ -292,6 +331,39 @@ def plot_regression_results(
         plt.savefig(full_file_path, bbox_inches="tight", format="svg")
         print(f"Plot saved to {full_file_path}")
 
+    plt.show()
+
+
+def plot_gpd_qq_plot(sigma_hat, xi_hat, Y_excesses):
+    # Avoid division by zero and handle cases where 1 + xi_hat * Y / sigma_hat <= 0
+    epsilon = 1e-8  # Small constant for numerical stability
+    tilde_Y = (1 / xi_hat) * jnp.log(
+        jnp.clip(1 + xi_hat * Y_excesses / sigma_hat, a_min=epsilon, a_max=None)
+    )
+
+    # Sort tilde_Y
+    sorted_tilde_Y = np.sort(tilde_Y)
+
+    # Compute theoretical exponential quantiles
+    k = len(sorted_tilde_Y)
+    theoretical_quantiles = -np.log(1 - (np.arange(1, k + 1) / (k + 1)))
+
+    # Plot Q-Q
+    plt.figure(figsize=(8, 6))
+    plt.scatter(
+        theoretical_quantiles, sorted_tilde_Y, color="blue", label="Empirical Quantiles"
+    )
+    plt.plot(
+        [theoretical_quantiles.min(), theoretical_quantiles.max()],
+        [theoretical_quantiles.min(), theoretical_quantiles.max()],
+        color="red",
+        linestyle="--",
+        label="45° Line",
+    )
+    plt.xlabel("Theoretical Quantiles (Exponential)")
+    plt.ylabel("Empirical Quantiles")
+    plt.title("Residual Quantile Plot (Exponential Scale)")
+    plt.legend()
     plt.show()
 
 
