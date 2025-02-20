@@ -1,5 +1,6 @@
 from typing import Optional, Tuple, List
 import os
+import warnings
 
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -18,15 +19,199 @@ import seaborn as sns
 GPD_SCALE_COLOR = "#2CD3CB"
 GPD_LOC_COLOR = "#2196F3"
 GPD_SHAPE_COLOR = "#E69F00"
-ELBO_COLOR = "#2C3E50"  #"#2C3E50"
-EXCESS_COLOR = "#CC6677" # "#F44336"  009E73
-SCATTERPLOT_COLOR = "#4CAF50" # "#4CAF50"
+ELBO_COLOR = "#2C3E50"  # "#2C3E50"
+EXCESS_COLOR = "#CC6677"  # "#F44336"  009E73
+SCATTERPLOT_COLOR = "#4CAF50"  # "#4CAF50"
 QUANTILE_COLOR = "#2196F3"
 QUANTILE_HDI_COLOR = "#7ec1f7"
 GPD_MEAN_COLOR = "#882255"
 GPD_MEAN_HDI_COLOR = "#d969a1"
-QQ_SCATTER_LINE = "#7F8C8D"
-QQ_SCATTER_QUANTILES = "#2C3E50" #688797
+QQ_SCATTER_LINE_COLOR = "#7F8C8D"
+QQ_SCATTER_QUANTILES_COLOR = "#2C3E50"  # 688797
+VIOLIN_COLOR_PALETTE = [
+    "#462fbb",
+    "#117733",
+    "#44AA99",
+    "#88CCEE",
+    "#CC6677",
+    "#AA4499",
+    "#882255",
+]
+
+
+VIOLIN_REFERENCE_COLOR = "#BDAE65"  # "#CC6677"
+
+
+def plot_wasserstein_violinplot(
+    wasserstein_distances: List[jnp.ndarray],
+    reference_wassersteindistances: jnp.ndarray,
+    x_labels: List[str],
+    reference_x_label: str,
+    nrows: int,
+    ncols: int,
+    palette: List[str],
+    reference_color: str,
+    fig_title: str,
+    subplot_titles: List[str],
+    y_label: str = "Wasserstein Distance",
+    title_fontsize: int = 16,
+    label_fontsize: int = 12,
+    quartiles_linewidth: float = 2.0,
+    quartiles_color: str = "black",
+    fig_size: Tuple[int, int] = (20, 25),
+    save_dir: Optional[str] = None,
+    file_name: Optional[str] = None,
+    do_save: bool = True,
+):
+    """
+    Plots violinplots in a grid layout with reference violin at the end of each row.
+
+    Parameters:
+        wasserstein_distances: 
+            Main distribution data for violinplots
+        reference_wassersteindistances: 
+            Reference distribution for each row
+        x_labels: Labels for violins
+        reference_x_label: 
+            Label for reference violins
+        nrows: 
+            Number of rows in grid
+        ncols: 
+            Number of columns per row (excluding reference)
+        palette: 
+            Color palette for violins
+        reference_color: 
+            Color for reference violin
+        quartiles_linewidth: float: 
+            median linewidth. Default 2.0
+        quartiles_color: 
+            Color for the internal quartile lines (default is "black").
+        fig_title: 
+            Overall figure title
+        subplot_titles: 
+            Titles for each row (length must match nrows)
+        y_label: 
+            Y-axis label
+        title_fontsize: 
+            Font size for titles
+        label_fontsize: 
+            Font size for axis labels
+        fig_size: 
+            Figure dimensions
+    """
+
+    # Convert JAX arrays to NumPy
+    main_data = [np.array(w) for w in wasserstein_distances]
+    ref_data = np.array(reference_wassersteindistances)
+
+    # Create figure and axes grid (one column, multiple rows)
+    fig, axs = plt.subplots(nrows, 1, figsize=fig_size, squeeze=False)
+    fig.suptitle(fig_title, fontsize=title_fontsize, y=0.99)
+
+    # Split main data into chunks for each row
+    row_chunks = [main_data[i : i + ncols] for i in range(0, len(main_data), ncols)]
+
+    for row_idx, (row_data, ax_row) in enumerate(zip(row_chunks, axs)):
+        ax = ax_row[0]
+
+        # Prepare combined data (main row data + reference)
+        combined_data = row_data + [ref_data]
+        combined_labels = x_labels + [reference_x_label]
+
+        # Build a single DataFrame for seaborn
+        df_list = []
+        for data, label in zip(combined_data, combined_labels):
+            temp_df = pd.DataFrame({"value": data, "label": label})
+            df_list.append(temp_df)
+        plot_df = pd.concat(df_list)
+
+        # Create color palette mapping
+        row_colors = [palette[i % len(palette)] for i in range(len(row_data))] + [
+            reference_color
+        ]
+        color_map = {label: color for label, color in zip(combined_labels, row_colors)}
+
+        # Create violin plot with quartiles
+        sns.violinplot(
+            x="label",
+            y="value",
+            hue="label",  # hue as label to map correct palette
+            data=plot_df,
+            palette=color_map,
+            inner="quartile",
+            cut=0,
+            ax=ax,
+            inner_kws={"linewidth": quartiles_linewidth, 
+                       "color": quartiles_color},
+            legend=False,
+        )
+
+        # Remove any default subplot title
+        ax.set_title("")
+
+        # Place the subplot title vertically on the right side
+        ax.text(
+            1.02,  # a bit to the right of the axes
+            0.5,  # vertically centered
+            subplot_titles[row_idx],
+            rotation=270,
+            transform=ax.transAxes,
+            fontsize=title_fontsize - 2,
+            va="center",
+            ha="left",
+        )
+
+        # Axis labels
+        ax.set_xlabel("")
+        ax.set_ylabel(y_label, fontsize=label_fontsize)
+
+        # Tick parameters
+        ax.tick_params(axis="x", rotation=45, labelsize=label_fontsize - 2)
+        ax.tick_params(axis="y", labelsize=label_fontsize - 2)
+
+        # Adjust x-axis label placement
+        if row_idx == 0:
+            # Move x-axis tick labels to the top for the first row
+            ax.xaxis.set_ticks_position("top")
+            ax.tick_params(axis="x", labeltop=True, labelbottom=False)
+        else:
+            # Remove x-axis labels for subsequent rows
+            ax.set_xticklabels([])
+            ax.tick_params(
+                axis="x",
+                which="both",
+                bottom=False,
+                top=False,
+                labelbottom=False,
+                labeltop=False,
+            )
+
+        # Add grid lines
+        ax.yaxis.grid(True, linestyle="--", alpha=0.7)
+
+    plt.tight_layout()
+
+    # Saving logic
+    if (file_name is None) != (save_dir is None):
+        raise ValueError(
+            "Both file_name and save_dir must be provided to save the plot."
+        )
+    elif file_name and save_dir:
+        if do_save:
+            os.makedirs(save_dir, exist_ok=True)
+            base, ext = os.path.splitext(file_name)
+            file_name_svg = base + ".svg"
+            plt.savefig(
+                os.path.join(save_dir, file_name_svg), bbox_inches="tight", format="svg"
+            )
+            print(f"Plot saved to {os.path.join(save_dir, file_name_svg)}")
+        else:
+            warnings.warn(
+                "The WD Violinplot plot has not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
+
+    plt.show()
 
 
 def plot_elbo(
@@ -41,6 +226,7 @@ def plot_elbo(
     apply_ma: tuple = (False, False, False),
     window: int = None,
     tick_label_plain: Optional[List[bool]] = [False, False, False],
+    do_save: bool = True,
 ):
     """
     Plots the ELBO over iterations along with two zoomed-in plots for the first initial_percentage
@@ -68,6 +254,8 @@ def plot_elbo(
         tick_label_plain: Optional[List[bool]];
             If first element true, then tick label format of first plot will be plain, otherwise automatic.
             Same for the other elements. Default: all false
+        do_save: bool
+            Flag to prevent saving with do_save=False. Default is True.
     """
     sns.set_theme(style="whitegrid")
 
@@ -142,13 +330,19 @@ def plot_elbo(
             "Both file_name and save_dir must be provided to save the plot."
         )
     elif file_name and save_dir:
-        os.makedirs(save_dir, exist_ok=True)
-        base, ext = os.path.splitext(file_name)
-        file_name_svg = base + ".svg"
-        plt.savefig(
-            os.path.join(save_dir, file_name_svg), bbox_inches="tight", format="svg"
-        )
-        print(f"Plot saved to {os.path.join(save_dir, file_name_svg)}")
+        if do_save:
+            os.makedirs(save_dir, exist_ok=True)
+            base, ext = os.path.splitext(file_name)
+            file_name_svg = base + ".svg"
+            plt.savefig(
+                os.path.join(save_dir, file_name_svg), bbox_inches="tight", format="svg"
+            )
+            print(f"Plot saved to {os.path.join(save_dir, file_name_svg)}")
+        else:
+            warnings.warn(
+                "The elbo plot has not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
 
     plt.show()
 
@@ -184,15 +378,9 @@ def plot_regression_results(
     pred_fig_size: tuple = (12, 4),
     save_dir: Optional[str] = None,
     y_origin: Optional[float] = None,  # New y-axis truncation parameter
+    do_save: bool = True,
 ):
-    """
-    Plots regression results with optional subplots for predictive parameters.
-
-    Parameters:
-        line_xs: List of x-value arrays for regression lines (1:1 with regression_lines)
-        y_origin: Optional y-axis origin for truncation (sets ylim bottom if specified)
-        Other parameters remain the same
-    """
+    """Plots regression results with optional subplots for predictive parameters."""
     # Validate matching lengths for regression components
     assert (
         len(line_xs)
@@ -315,11 +503,18 @@ def plot_regression_results(
 
     # Save handling
     if file_name and save_dir:
-        full_path = os.path.join(
-            save_dir, file_name if file_name.endswith(".svg") else f"{file_name}.svg"
-        )
-        plt.savefig(full_path, format="svg", bbox_inches="tight")
-        print(f"Plot saved to {full_path}")
+        if do_save:
+            full_path = os.path.join(
+                save_dir,
+                file_name if file_name.endswith(".svg") else f"{file_name}.svg",
+            )
+            plt.savefig(full_path, format="svg", bbox_inches="tight")
+            print(f"Plot saved to {full_path}")
+        else:
+            warnings.warn(
+                "The regression_results plot have not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
     elif file_name or save_dir:
         raise ValueError(
             "Both file_name and save_dir must be provided to save the plot."
@@ -329,7 +524,14 @@ def plot_regression_results(
 
 
 def plot_gpd_qq_plot(
-    sigma_hat, xi_hat, Y_excesses, qq_line_color, quantiles_color, file_name, save_dir
+    sigma_hat,
+    xi_hat,
+    Y_excesses,
+    qq_line_color,
+    quantiles_color,
+    file_name,
+    save_dir,
+    do_save,
 ):
     # Avoid division by zero and handle cases where 1 + xi_hat * Y_excesses / sigma_hat <= 0
     epsilon = 1e-8  # Small constant for numerical stability
@@ -373,11 +575,18 @@ def plot_gpd_qq_plot(
 
     # Save handling
     if file_name and save_dir:
-        full_path = os.path.join(
-            save_dir, file_name if file_name.endswith(".svg") else f"{file_name}.svg"
-        )
-        plt.savefig(full_path, format="svg", bbox_inches="tight")
-        print(f"Plot saved to {full_path}")
+        if do_save:
+            full_path = os.path.join(
+                save_dir,
+                file_name if file_name.endswith(".svg") else f"{file_name}.svg",
+            )
+            plt.savefig(full_path, format="svg", bbox_inches="tight")
+            print(f"Plot saved to {full_path}")
+        else:
+            warnings.warn(
+                "The gpd_qq plot has not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
     elif file_name or save_dir:
         raise ValueError(
             "Both file_name and save_dir must be provided to save the plot."
@@ -400,6 +609,7 @@ def plot_synthetic_data(
     line_labels: list,
     file_name: str = None,
     save_dir: str = None,
+    do_save: bool = True,
 ):
     """
     Plots synthetic data as a scatter plot and compares multiple lines (e.g., true vs predicted).
@@ -433,6 +643,8 @@ def plot_synthetic_data(
             Filename to save the plot (saves as SVG).
         save_dir: Optional[str], optional
             Directory path to save the plot. Uses current directory if None.
+        do_save: bool
+            Flag to prevent saving with do_save=False. Default is True.
     """
     sns.set_theme(style="whitegrid")
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
@@ -465,11 +677,17 @@ def plot_synthetic_data(
         )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
-        base, _ = os.path.splitext(file_name)
-        file_name_svg = base + ".svg"
-        full_file_path = os.path.join(save_dir, file_name_svg)
-        plt.savefig(full_file_path, bbox_inches="tight", format="svg")
-        print(f"Plot saved to {full_file_path}")
+        if do_save:
+            base, _ = os.path.splitext(file_name)
+            file_name_svg = base + ".svg"
+            full_file_path = os.path.join(save_dir, file_name_svg)
+            plt.savefig(full_file_path, bbox_inches="tight", format="svg")
+            print(f"Plot saved to {full_file_path}")
+        else:
+            warnings.warn(
+                "The synthetic_data plot has not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
 
     plt.show()
 
@@ -484,6 +702,7 @@ def plot_data(
     figsize=(12, 6),
     file_name: str = None,
     save_dir: str = None,
+    do_save: bool = True,
 ):
     """
     Plots data as a scatter plot.
@@ -505,6 +724,8 @@ def plot_data(
             Filename to save the plot (saves as SVG).
         save_dir: Optional[str], optional
             Directory path to save the plot. Uses current directory if None.
+        do_save: bool
+            Flag to prevent saving with do_save=False. Default is True.
     """
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=figsize)
@@ -534,11 +755,17 @@ def plot_data(
         )
     elif file_name and save_dir:
         # Both file_name and save_dir are provided; proceed with saving.
-        base, _ = os.path.splitext(file_name)
-        file_name_svg = base + ".svg"
-        full_file_path = os.path.join(save_dir, file_name_svg)
-        plt.savefig(full_file_path, bbox_inches="tight", format="svg")
-        print(f"Plot saved to {full_file_path}")
+        if do_save:
+            base, _ = os.path.splitext(file_name)
+            file_name_svg = base + ".svg"
+            full_file_path = os.path.join(save_dir, file_name_svg)
+            plt.savefig(full_file_path, bbox_inches="tight", format="svg")
+            print(f"Plot saved to {full_file_path}")
+        else:
+            warnings.warn(
+                "The data plot has not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
     plt.show()
 
 
@@ -556,7 +783,8 @@ def plot_true_predicted_comparison(
     fig_size: Tuple[int, int] = (10, 6),
     save_dir: Optional[str] = None,
     file_name: Optional[str] = None,
-) -> None:
+    do_save: bool = True,
+):
     """
     Plots a comparison of the true generated parameter values per observation i against the predicted ones
     The function works for any number parameters.
@@ -589,6 +817,8 @@ def plot_true_predicted_comparison(
             Directory path where the plot will be saved (if provided).
         file_name: Optional[str], optional
             File name (with extension) for saving the plot. The file will be saved as an SVG.
+        do_save: bool
+            Flag to prevent saving with do_save=False. Default is True.
     """
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=fig_size)
@@ -624,10 +854,16 @@ def plot_true_predicted_comparison(
             "For saving, both a file name and a save directory must be provided."
         )
     elif file_name and save_dir:
-        # Both file_name and save_dir are provided; proceed with saving.
-        base, _ = os.path.splitext(file_name)
-        file_name_svg = base + ".svg"
-        full_file_path = os.path.join(save_dir, file_name_svg)
-        plt.savefig(full_file_path, bbox_inches="tight", format="svg")
-        print(f"Plot saved to {full_file_path}")
+        if do_save:
+            # Both file_name and save_dir are provided; proceed with saving.
+            base, _ = os.path.splitext(file_name)
+            file_name_svg = base + ".svg"
+            full_file_path = os.path.join(save_dir, file_name_svg)
+            plt.savefig(full_file_path, bbox_inches="tight", format="svg")
+            print(f"Plot saved to {full_file_path}")
+        else:
+            warnings.warn(
+                "The true_predicted_comparison plot has not been saved. Flag do_save=True for saving.",
+                category=UserWarning,
+            )
     plt.show()

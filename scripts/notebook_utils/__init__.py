@@ -5,6 +5,7 @@ from .plotting import (
     plot_data,
     plot_true_predicted_comparison,
     plot_gpd_qq_plot,
+    plot_wasserstein_violinplot,
     GPD_LOC_COLOR,
     GPD_SCALE_COLOR,
     GPD_SHAPE_COLOR,
@@ -15,8 +16,16 @@ from .plotting import (
     QUANTILE_HDI_COLOR,
     GPD_MEAN_COLOR,
     GPD_MEAN_HDI_COLOR,
-    QQ_SCATTER_LINE,
-    QQ_SCATTER_QUANTILES,
+    QQ_SCATTER_LINE_COLOR,
+    QQ_SCATTER_QUANTILES_COLOR,
+    VIOLIN_COLOR_PALETTE,
+    VIOLIN_REFERENCE_COLOR,
+)
+from .simulation_study import (
+    wasserstein_distance,
+    build_vi_posteriors,
+    save_svi_vi_parameters,
+    load_vi_loc_and_chol_parameters,
 )
 
 
@@ -37,6 +46,14 @@ __all__ = [
     "QUANTILE_HDI_COLOR",
     "GPD_MEAN_COLOR",
     "GPD_MEAN_HDI_COLOR",
-    "QQ_SCATTER_LINE",
-    "QQ_SCATTER_QUANTILES",
+    "QQ_SCATTER_LINE_COLOR",
+    "QQ_SCATTER_QUANTILES_COLOR",
+    "wasserstein_distance",
+    "build_vi_posteriors",
+    "BOXPLOT_COLOR_PALETTE",
+    "plot_wasserstein_violinplot",
+    "VIOLIN_COLOR_PALETTE",
+    "VIOLIN_REFERENCE_COLOR",
+    "save_svi_vi_parameters",
+    "load_vi_loc_and_chol_parameters",
 ]
