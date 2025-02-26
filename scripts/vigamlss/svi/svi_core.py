@@ -169,7 +169,7 @@ def update_step(
         subkey_carry,
     )
 
-    return new_carry, loss
+    return new_carry, (loss, new_vi_parameters[0])
 
 
 def core_svi_optimization(
@@ -226,5 +226,9 @@ def core_svi_optimization(
         return jax.lax.scan(f=curried_update_step, init=carry, xs=xs)
 
     # final_carry, losses = jax.lax.scan(f=jitted_update_step, init=carry, xs=xs)
-    final_carry, losses = jitted_scan_loop(carry, xs)
-    return final_carry, losses
+    #final_carry, losses = jitted_scan_loop(carry, xs)
+    final_carry, outputs = jitted_scan_loop(carry, xs)
+    losses, vi_params_history = outputs  # vi_params_history now holds the intermediate parameters
+
+    #return final_carry, losses    
+    return final_carry, losses, vi_params_history 

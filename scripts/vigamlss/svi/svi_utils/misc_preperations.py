@@ -57,7 +57,7 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
         total_steps: Total number of training steps
         **kwargs: Additional parameters needed for the scheduler:
             For 'step' scheduler:
-                - num_drops: Number of times to drop the learning rate
+                - step_events: List with number of iteration after which to drop the lr
                 - drop_magnitude: Factor by which to drop the LR
             For 'warmup_cosine_decay' scheduler:
                 - warmup_fraction: Fraction of total steps for warmup phase
@@ -122,32 +122,29 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
 
     elif scheduler_type == "step":
         # Validate required parameters
-        required = ["num_drops", "drop_magnitude"]
+        required = ["step_events", "drop_magnitude"]
         if any(key not in kwargs for key in required):
             missing = [key for key in required if key not in kwargs]
             raise ValueError(
                 f"Missing required parameters for step scheduler: {missing}"
             )
 
-        num_drops = kwargs["num_drops"]
+        step_events = kwargs["step_events"]
         drop_magnitude = kwargs["drop_magnitude"]
 
         # Validate parameter values
-        if num_drops < 1:
-            raise ValueError("num_drops must be at least 1")
-        if total_steps < num_drops + 1:
-            raise ValueError(f"total_steps must be at least {num_drops + 1}")
+        if not isinstance(step_events, list) or not step_events:
+            raise ValueError("step_events must be a non-empty list of integers")
+        for step in step_events:
+            if not isinstance(step, int) or step < 0:
+                raise ValueError(f"Invalid step {step} in step_events: must be non-negative integers")
+            if step >= total_steps:
+                raise ValueError(f"Step event {step} exceeds total_steps {total_steps}")
         if not 0 < drop_magnitude <= 1:
-            raise ValueError("drop_magnitude should be between 0 and 1")
+            raise ValueError("drop_magnitude should be between 0 (exclusive) and 1 (inclusive)")
 
-        # Calculate equal interval boundaries
-        interval = total_steps // (num_drops + 1)
-        boundaries = [interval * (i + 1) for i in range(num_drops)]
-
-        # Create boundaries and scales dictionary
-        boundaries_and_scales = {
-            int(boundary): drop_magnitude for boundary in boundaries
-        }
+        # Use step_events as the boundaries
+        boundaries_and_scales = {int(step): drop_magnitude for step in step_events}
 
         return optax.piecewise_constant_schedule(lr, boundaries_and_scales)
 

@@ -404,7 +404,7 @@ class ModelDAG:
             return tuple(self._nested_list_to_tuple(item) for item in data)
         return data
 
-    def _postprocess_results(self, final_carry, losses, svi_metadata) -> dict:
+    def _postprocess_results(self, final_carry, losses, svi_metadata, all_vi_locs) -> dict:
         """Postprocesses the results of SVI optimization."""
         final_vi_parameters, _, _, _, _ = final_carry
         loc_vi_parameters = final_vi_parameters[0]
@@ -448,6 +448,7 @@ class ModelDAG:
             "scale_vi_matrix": unflattened_scale_vi_parameters,
             "losses": losses,
             "num_vi_parameters": num_vi_parameters,
+            "vi_locs": all_vi_locs,
             "svi_metadata": svi_metadata,
         }
         return results_dict
@@ -506,7 +507,7 @@ class ModelDAG:
             zero_nans_enabled=zero_nans_enabled,
         )
 
-        final_carry, losses = core_svi_optimization(
+        final_carry, losses, vi_locs = core_svi_optimization(
             responses_padded=responses_padded,
             design_matrix_padded=design_matrix_padded,
             mb_pointers=mb_pointers,
@@ -535,7 +536,7 @@ class ModelDAG:
             "vi_dist": vi_dist.name,
         }
 
-        return self._postprocess_results(final_carry, losses, svi_metadata)
+        return self._postprocess_results(final_carry, losses, svi_metadata, init_vi_parameters[0] + vi_locs)
 
     @property
     def total_num_vi_params(self) -> int:
