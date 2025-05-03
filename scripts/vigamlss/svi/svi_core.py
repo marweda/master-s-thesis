@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Optional
 from functools import partial
 from operator import add
 
@@ -22,6 +22,7 @@ def compute_neg_mc_elbo(
     arg_idxs: Tuple[Tuple[int, ...]],
     vi_sample_func: Callable,
     vi_log_pdf_func: Callable,
+    capture_intermediate: bool,
 ) -> float:
     beta_samples = vi_sample_func(
         variational_parameters[0], variational_parameters[1], vi_sampling_prngkey
@@ -35,9 +36,8 @@ def compute_neg_mc_elbo(
     )
     dp_pairs: Tuple[Tuple[jnp.ndarray]] = jax.tree.map(
         lambda dp_idxs: (
-            jax.lax.dynamic_slice_in_dim(
-                design_matrix_mb, dp_idxs[1][0], dp_idxs[1][1], 1
-            ),
+            # Replace dynamic_slice_in_dim with NumPy-style indexing
+            design_matrix_mb[:, dp_idxs[1][0] : dp_idxs[1][0] + dp_idxs[1][1]],
             beta_samples_split[dp_idxs[0]],
         ),
         dp_idxs,
@@ -106,10 +106,25 @@ def compute_neg_mc_elbo(
         selected_log_pdf_args,
         is_leaf=lambda x: callable(x),
     )
-    log_joint_pdfs_nd_array = jnp.column_stack(log_joint_pdfs)
-    log_joint_pdfs_collapsed = jnp.sum(log_joint_pdfs_nd_array, axis=1)
-    elbo = log_joint_pdfs_collapsed - log_q_pdf
-    return -jnp.mean(elbo)
+    response_log_pdf = log_joint_pdfs[-1]
+    summed_over_y_response_log_joint_pdf = jnp.sum(response_log_pdf, axis=1)
+    log_joint_pdfs_component_wise_stacked = jnp.column_stack(
+        jax.tree.leaves(log_joint_pdfs[:-1]) + [summed_over_y_response_log_joint_pdf]
+    )  # (vi_samples, #logpdfs)
+    row_wise_summed_log_joint_pdfs = jnp.sum(
+        log_joint_pdfs_component_wise_stacked, axis=1
+    )  # (vi_samples,)
+    elbo = row_wise_summed_log_joint_pdfs - log_q_pdf
+    final_loss = -jnp.mean(elbo)
+    if capture_intermediate:
+        return final_loss, (
+            response_log_pdf,
+            log_joint_pdfs_component_wise_stacked,
+            log_q_pdf,
+            beta_samples,
+        )
+    else:
+        return final_loss, ()
 
 
 def update_step(
@@ -123,41 +138,53 @@ def update_step(
     xs_slice: Tuple[jnp.ndarray, jnp.ndarray],
     value_and_grad_obj: Callable,
     optimizer: optax.GradientTransformation,
+    capture_intermediate: bool,
+    use_mb: bool,
 ) -> Tuple[
     Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, optax.GradientTransformation, PRNGKey],
     float,
 ]:
     """Update step for the SVI optimization loop."""
-    mb_pointers, masks = xs_slice
     vi_parameters, responses_padded, design_matrix_padded, opt_state, prng_key = carry
 
     subkey_carry, subkey_elbo_vi_sampling = jax.random.split(prng_key)
 
-    Y_mini_batch = jnp.take(
-        responses_padded,
-        mb_pointers,
-        axis=0,
-        mode="fill",
-        unique_indices=True,
-        indices_are_sorted=True,
-    )
+    if use_mb:
+        mb_pointers_slice, masks_slice = xs_slice
+        Y_mini_batch = jnp.take(
+            responses_padded,
+            mb_pointers_slice,
+            axis=0,
+            mode="fill",
+            unique_indices=True,
+            indices_are_sorted=True,
+        )
+        X_mini_batch = jnp.take(
+            design_matrix_padded,
+            mb_pointers_slice,
+            axis=0,
+            mode="fill",
+            unique_indices=True,
+            indices_are_sorted=True,
+        )
+        masks_mb = masks_slice
+    else:
+        Y_mini_batch = responses_padded
+        X_mini_batch = design_matrix_padded
+        masks_mb = jnp.ones_like(Y_mini_batch, dtype=bool)
 
-    X_mini_batch = jnp.take(
-        design_matrix_padded,
-        mb_pointers,
-        axis=0,
-        mode="fill",
-        unique_indices=True,
-        indices_are_sorted=True,
-    )
-
-    loss, grads = value_and_grad_obj(
+    (loss, aux), grads = value_and_grad_obj(
         vi_parameters,
         Y_mini_batch,
         X_mini_batch,
-        masks,
+        masks_mb,
         subkey_elbo_vi_sampling,
     )
+
+    if capture_intermediate:
+        response_log_pdf, log_pdfs, log_q, beta_samples = aux
+    else:
+        response_log_pdf, log_pdfs, log_q, beta_samples = None, None, None, None
 
     updates, new_opt_state = optimizer.update(grads, opt_state, vi_parameters)
     new_vi_parameters = optax.apply_updates(vi_parameters, updates)
@@ -169,14 +196,21 @@ def update_step(
         subkey_carry,
     )
 
-    return new_carry, (loss, new_vi_parameters[0])
+    return new_carry, (
+        loss,
+        new_vi_parameters[0],
+        response_log_pdf,
+        log_pdfs,
+        log_q,
+        beta_samples,
+    )
 
 
 def core_svi_optimization(
     responses_padded: jnp.ndarray,
     design_matrix_padded: jnp.ndarray,
-    mb_pointers: jnp.ndarray,
-    masks: jnp.ndarray,
+    mb_pointers: Optional[jnp.ndarray],  # Now Optional
+    masks: Optional[jnp.ndarray],  # Now Optional
     joint_log_pdfs_funcs: Tuple[Callable, ...],
     transformations: Tuple[Callable, ...],
     vi_sample_func: Callable,
@@ -189,8 +223,11 @@ def core_svi_optimization(
     dp_idxs: Tuple[Tuple[int, Tuple[int, int]]],
     add_idxs: Tuple[Tuple[int, Tuple[int, ...]]],
     arg_idxs: Tuple[Tuple[int, ...]],
+    use_mb: bool,
+    capture_intermediate: bool,
+    capture_profil: bool,
+    num_iterations: int,
 ) -> tuple:
-    """The core SVI optimization loop."""
     curried_compute_neg_mc_elbo = partial(
         compute_neg_mc_elbo,
         joint_log_pdf_funcs=joint_log_pdfs_funcs,
@@ -201,18 +238,30 @@ def core_svi_optimization(
         arg_idxs=arg_idxs,
         vi_sample_func=vi_sample_func,
         vi_log_pdf_func=vi_log_pdf_func,
+        capture_intermediate=capture_intermediate,
     )
-    value_and_grad_obj = jax.value_and_grad(curried_compute_neg_mc_elbo, argnums=0)
+
+    value_and_grad_obj = jax.value_and_grad(
+        curried_compute_neg_mc_elbo, has_aux=True, argnums=0
+    )
 
     curried_update_step = partial(
         update_step,
         value_and_grad_obj=value_and_grad_obj,
         optimizer=optimizer,
+        capture_intermediate=capture_intermediate,
+        use_mb=use_mb,
     )
 
-    # jitted_update_step = jax.jit(curried_update_step)
+    if use_mb:
+        xs = (mb_pointers, masks)
+    else:
+        # Create dummy xs with shape (num_iterations, 0) to satisfy scan
+        xs = (
+            jnp.zeros((num_iterations,), dtype=bool),
+            jnp.zeros((num_iterations,), dtype=bool),
+        )
 
-    xs = (mb_pointers, masks)
     carry = (
         init_vi_parameters,
         responses_padded,
@@ -225,10 +274,20 @@ def core_svi_optimization(
     def jitted_scan_loop(carry, xs):
         return jax.lax.scan(f=curried_update_step, init=carry, xs=xs)
 
-    # final_carry, losses = jax.lax.scan(f=jitted_update_step, init=carry, xs=xs)
-    #final_carry, losses = jitted_scan_loop(carry, xs)
-    final_carry, outputs = jitted_scan_loop(carry, xs)
-    losses, vi_params_history = outputs  # vi_params_history now holds the intermediate parameters
+    if capture_profil:
+        with jax.profiler.trace("/tmp/tensorboard"):
+            final_carry, outputs = jitted_scan_loop(carry, xs)
+            jax.tree_map(lambda x: x.block_until_ready(), outputs)
+    else:
+        final_carry, outputs = jitted_scan_loop(carry, xs)
 
-    #return final_carry, losses    
-    return final_carry, losses, vi_params_history 
+    losses, vi_params_history, response_log_pdf, log_pdfs, log_q, beta_samples = outputs
+    return (
+        final_carry,
+        losses,
+        vi_params_history,
+        response_log_pdf,
+        log_pdfs,
+        log_q,
+        beta_samples,
+    )

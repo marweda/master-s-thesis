@@ -404,7 +404,17 @@ class ModelDAG:
             return tuple(self._nested_list_to_tuple(item) for item in data)
         return data
 
-    def _postprocess_results(self, final_carry, losses, svi_metadata, all_vi_locs) -> dict:
+    def _postprocess_results(
+        self,
+        final_carry,
+        losses,
+        svi_metadata,
+        all_vi_locs,
+        response_log_pdf,
+        log_pdfs,
+        log_q,
+        beta_samples,
+    ) -> dict:
         """Postprocesses the results of SVI optimization."""
         final_vi_parameters, _, _, _, _ = final_carry
         loc_vi_parameters = final_vi_parameters[0]
@@ -449,6 +459,10 @@ class ModelDAG:
             "losses": losses,
             "num_vi_parameters": num_vi_parameters,
             "vi_locs": all_vi_locs,
+            "response_log_pdf": response_log_pdf,
+            "log_pdfs": log_pdfs,
+            "log_q": log_q,
+            "beta_samples": beta_samples,
             "svi_metadata": svi_metadata,
         }
         return results_dict
@@ -466,6 +480,8 @@ class ModelDAG:
         zero_nans_enabled: bool,
         prng_key: PRNGKey,
         scheduler_type: str,
+        capture_intermediate: bool = False,
+        capture_profil: bool = False,
         **kwargs,
     ) -> dict:
         """
@@ -485,15 +501,20 @@ class ModelDAG:
             vi_dist, vi_sample_size
         )
 
-        if mb_size is None:
-            mb_size = self.bigX.shape[0]  # full batch
-
-        mb_pointers, masks, responses_padded, design_matrix_padded = (
-            prepare_mini_batching(
-                self.responses, self.bigX, epochs, mb_size, mb_prngkey
+        use_mb = mb_size is not None
+        if use_mb:
+            mb_pointers, masks, responses_padded, design_matrix_padded = (
+                prepare_mini_batching(
+                    self.responses, self.bigX, epochs, mb_size, mb_prngkey
+                )
             )
-        )
-        num_iterations = len(mb_pointers)
+            num_iterations = len(mb_pointers)
+        else:
+            mb_pointers, masks = None, None
+            responses_padded = self.responses
+            design_matrix_padded = self.bigX
+            num_iterations = epochs
+
         optax_scheduler = prepare_scheduler(
             scheduler_type=scheduler_type, lr=lr, total_steps=num_iterations, **kwargs
         )
@@ -507,7 +528,15 @@ class ModelDAG:
             zero_nans_enabled=zero_nans_enabled,
         )
 
-        final_carry, losses, vi_locs = core_svi_optimization(
+        (
+            final_carry,
+            losses,
+            vi_locs,
+            response_log_pdf,
+            log_pdfs,
+            log_q,
+            beta_samples,
+        ) = core_svi_optimization(
             responses_padded=responses_padded,
             design_matrix_padded=design_matrix_padded,
             mb_pointers=mb_pointers,
@@ -524,6 +553,10 @@ class ModelDAG:
             dp_idxs=self.dp_indices,
             add_idxs=self.add_indices,
             arg_idxs=self.arg_indices,
+            use_mb=use_mb,
+            capture_intermediate=capture_intermediate,
+            capture_profil=capture_profil,
+            num_iterations=num_iterations,
         )
 
         svi_metadata = {
@@ -536,7 +569,16 @@ class ModelDAG:
             "vi_dist": vi_dist.name,
         }
 
-        return self._postprocess_results(final_carry, losses, svi_metadata, init_vi_parameters[0] + vi_locs)
+        return self._postprocess_results(
+            final_carry,
+            losses,
+            svi_metadata,
+            init_vi_parameters[0] + vi_locs,
+            response_log_pdf,
+            log_pdfs,
+            log_q,
+            beta_samples,
+        )
 
     @property
     def total_num_vi_params(self) -> int:

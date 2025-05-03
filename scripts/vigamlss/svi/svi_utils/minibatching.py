@@ -29,9 +29,9 @@ def create_observation_pointers(
     len_responses: int, missing_data: int
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Create observation pointers and padding mask."""
-    observation_pointers = jnp.arange(len_responses, dtype=jnp.int32)
+    observation_pointers = jnp.arange(len_responses, dtype=jnp.uint16)
     observation_pointers_for_padding = jnp.arange(
-        len_responses, len_responses + missing_data, dtype=jnp.int32
+        len_responses, len_responses + missing_data, dtype=jnp.uint16
     )
 
     padded_pointers = jnp.concatenate(
@@ -132,16 +132,15 @@ def prepare_mini_batching(
         random_indices = jax.random.permutation(subkey, len(responses))[:missing_data]
         responses_padding = responses[random_indices]
         design_matrices_padding = design_matrix[random_indices]
+        responses_padded = pad_array(responses, responses_padding)
+        design_matrix_padded = pad_array(design_matrix, design_matrices_padding)
     else:
-        responses_padding = responses
-        design_matrices_padding = design_matrix
-
-    responses_padded = pad_array(responses, responses_padding)
-    design_matrix_padded = pad_array(design_matrix, design_matrices_padding)
+        responses_padded = responses
+        design_matrix_padded = design_matrix
 
     return (
-        sorted_mini_batches,
-        sorted_padding_masks,
+        sorted_mini_batches.astype(jnp.uint16),
+        sorted_padding_masks.astype(jnp.bool_),
         responses_padded,
         design_matrix_padded,
     )

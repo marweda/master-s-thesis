@@ -48,7 +48,7 @@ class Distribution:
         self.node_type = "Distribution"
 
 
-class NormalDistributionValidator:
+class NormalValidator:
     """Handles parameter validation and state management specifically for Normal distributions."""
 
     def __init__(self, distribution):
@@ -195,7 +195,7 @@ class Normal(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = NormalDistributionValidator(self)
+        self.validator = NormalValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -256,7 +256,7 @@ class Normal(Distribution):
     ) -> jnp.ndarray:
         """Original GAMLSS log PDF computation."""
         log_pdf = tfd.Normal(loc, scale).log_prob(realizations)
-        return jnp.sum(log_pdf * mask)
+        return log_pdf * mask
 
     @staticmethod
     def _compute_prior_log_pdf(
@@ -275,7 +275,7 @@ class Normal(Distribution):
         return LinearPredictor(other, self, operation="@")
 
 
-class GammaDistributionValidator:
+class GammaValidator:
     """Handles parameter validation and state management specifically for Gamma distributions."""
 
     def __init__(self, distribution):
@@ -401,7 +401,7 @@ class Gamma(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = GammaDistributionValidator(self)
+        self.validator = GammaValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -468,7 +468,7 @@ class Gamma(Distribution):
     ) -> jnp.ndarray:
         """Original GAMLSS log PDF computation."""
         log_pdf = tfd.Gamma(concentration, rate).log_prob(realizations)
-        return jnp.sum(log_pdf * mask)
+        return log_pdf * mask
 
     @staticmethod
     def _compute_prior_log_pdf(
@@ -487,7 +487,7 @@ class Gamma(Distribution):
         raise NotImplementedError("Matrix multiplication is not supported for Gamma.")
 
 
-class DegenerateNormalDistributionValidator:
+class MVNDegenerateValidator:
     """Handles parameter validation and state management specifically for DegenerateNormal distributions."""
 
     def __init__(self, distribution):
@@ -562,8 +562,8 @@ class DegenerateNormalDistributionValidator:
             )
 
 
-class DegenerateNormal(Distribution):
-    """Degenerate Normal distribution with penalty matrix."""
+class DMN(Distribution):
+    """MultivariateNormalDegenerate distribution with penalty matrix."""
 
     def __init__(
         self,
@@ -572,13 +572,13 @@ class DegenerateNormal(Distribution):
         tau2: Union[jnp.ndarray, Distribution],
     ):
         super().__init__(rv_name, {"tau2": tau2}, penalty_matrix.shape[0])
-        # Degenerate Normal specific
+        # MultivariateNormalDegenerate specific
         self.penalty_matrix = penalty_matrix
         self.location = jnp.zeros(penalty_matrix.shape[0])
         self.realization_transformation = [TransformationFunctions.identity]
 
         # Validate and setup distribution state using the validator
-        self.validator = DegenerateNormalDistributionValidator(self)
+        self.validator = MVNDegenerateValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -670,7 +670,7 @@ class DegenerateNormal(Distribution):
         return LinearPredictor(other, self, operation="@")
 
 
-class GPDDistributionValidator:
+class GPDValidator:
     """Handles parameter validation and state management specifically for CustomGPD distributions."""
 
     def __init__(self, distribution):
@@ -720,7 +720,7 @@ class GPDDistributionValidator:
         return distribution_state
 
 
-class GPD(Distribution):
+class GP(Distribution):
     """Generalized Pareto Distribution implementation."""
 
     def __init__(
@@ -746,7 +746,7 @@ class GPD(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = GPDDistributionValidator(self)
+        self.validator = GPDValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -789,7 +789,7 @@ class GPD(Distribution):
         log_pdf = distribution.log_prob(realizations)
 
         # Apply mask and sum
-        return jnp.sum(log_pdf * mask)
+        return log_pdf * mask
 
     def __add__(self, other):
         raise NotImplementedError("Addition operation is not supported for CustomGPD.")
@@ -800,7 +800,7 @@ class GPD(Distribution):
         )
 
 
-class GEVDistributionValidator:
+class GEVValidator:
     """Handles parameter validation and state management specifically for the CustomGEV distribution."""
 
     def __init__(self, distribution):
@@ -876,7 +876,7 @@ class GEV(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = GEVDistributionValidator(self)
+        self.validator = GEVValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -919,7 +919,7 @@ class GEV(Distribution):
         log_pdf = distribution.log_prob(realizations)
 
         # Apply mask and sum
-        return jnp.sum(log_pdf * mask)
+        return log_pdf * mask
 
     def __add__(self, other):
         raise NotImplementedError("Addition operation is not supported for CustomGEV.")
@@ -930,7 +930,7 @@ class GEV(Distribution):
         )
 
 
-class HalfCauchyDistributionValidator:
+class HalfCauchyValidator:
     """Handles parameter validation and state management specifically for HalfCauchy distributions."""
 
     def __init__(self, distribution):
@@ -1045,7 +1045,7 @@ class HalfCauchy(Distribution):
         self.realization_transformation = [TransformationFunctions.softplus]
 
         # Validate and setup distribution state using the validator
-        self.validator = HalfCauchyDistributionValidator(self)
+        self.validator = HalfCauchyValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -1108,7 +1108,7 @@ class HalfCauchy(Distribution):
         )
 
 
-class ALDDistributionValidator:
+class ALDValidator:
     """
     Handles parameter validation and state management specifically for CustomALD distributions.
 
@@ -1182,7 +1182,7 @@ class ALDDistributionValidator:
             )
 
 
-class ALD(Distribution):
+class AL(Distribution):
     """
     Asymmetric Laplace Distribution (ALD) implementation as a likelihood.
 
@@ -1219,7 +1219,7 @@ class ALD(Distribution):
         ]
 
         # Validate and set up distribution state using the validator.
-        self.validator = ALDDistributionValidator(self)
+        self.validator = ALDValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -1268,7 +1268,7 @@ class ALD(Distribution):
         """Computes the GAMLSS log-PDF for ALD."""
         distribution = CustomALD(loc=loc, scale=scale, tau=tau)
         log_pdf = distribution.log_prob(realizations)
-        return jnp.sum(log_pdf * mask)
+        return log_pdf * mask
 
     def __add__(self, other):
         raise NotImplementedError("Addition operation is not supported for ALD.")
@@ -1277,7 +1277,7 @@ class ALD(Distribution):
         raise NotImplementedError("Matrix multiplication is not supported for ALD.")
 
 
-class CenteredGPDDistributionValidator:
+class ZeroCenteredGPDValidator:
     """Handles parameter validation and state management specifically for CenteredGPD distributions."""
 
     def __init__(self, distribution):
@@ -1305,20 +1305,24 @@ class CenteredGPDDistributionValidator:
                 return parameter_type
             else:
                 raise ValueError(
-                    "All parameters must be LinearPredictors for CenteredGPD"
+                    "All parameters must be LinearPredictors for ZeroCenteredGPD"
                 )
         else:
-            raise ValueError("All parameters must be LinearPredictors for CenteredGPD")
+            raise ValueError(
+                "All parameters must be LinearPredictors for ZeroCenteredGPD"
+            )
 
     def _validate_parameters(self) -> None:
         """Validate all parameters and their relationships."""
         # Ensure all parameters are LinearPredictors
         if not all(pt.is_linearpredictor for pt in self.parameter_types.values()):
-            raise ValueError("All parameters must be LinearPredictors for CenteredGPD")
+            raise ValueError(
+                "All parameters must be LinearPredictors for ZeroCenteredGPD"
+            )
 
         # Ensure responses are provided
         if self.distribution.responses is None:
-            raise ValueError("Responses must be provided for CenteredGPD")
+            raise ValueError("Responses must be provided for ZeroCenteredGPD")
 
     def _set_distribution_state(self) -> DistributionState:
         """Setup distribution state for likelihood-only case."""
@@ -1327,7 +1331,7 @@ class CenteredGPDDistributionValidator:
         return distribution_state
 
 
-class CenteredGPD(Distribution):
+class ZeroCenteredGP(Distribution):
     """Generalized Pareto Distribution implementation with fixed location at 0.0."""
 
     def __init__(
@@ -1351,7 +1355,7 @@ class CenteredGPD(Distribution):
         ]
 
         # Validate and setup distribution state using the validator
-        self.validator = CenteredGPDDistributionValidator(self)
+        self.validator = ZeroCenteredGPDValidator(self)
         self._distribution_state = self.validator.validate_and_setup()
         self.parameter_types = self.validator.parameter_types
 
@@ -1387,14 +1391,180 @@ class CenteredGPD(Distribution):
         """GAMLSS log PDF computation using CustomGPD with loc=0.0."""
         distribution = CustomGPD(loc=0.0, scale=scale, shape=shape)
         log_pdf = distribution.log_prob(realizations)
-        return jnp.sum(log_pdf * mask)
+        return log_pdf * mask
 
     def __add__(self, other):
         raise NotImplementedError(
-            "Addition operation is not supported for CenteredGPD."
+            "Addition operation is not supported for ZeroCenteredGPD."
         )
 
     def __rmatmul__(self, other):
         raise NotImplementedError(
-            "Matrix multiplication is not supported for CenteredGPD."
+            "Matrix multiplication is not supported for ZeroCenteredGPD."
+        )
+
+
+class InverseGammaValidator:
+    """Handles parameter validation and state management specifically for InverseGamma distributions."""
+
+    def __init__(self, distribution):
+        self.distribution = distribution
+        self.parameter_types = {}
+        self.distribution_state = None
+
+    def validate_and_setup(self):
+        """Main entry point for validation and state setup."""
+        self.parameter_types = {
+            name: self._set_parameter_type(param)
+            for name, param in self.distribution.parameters.items()
+        }
+        self._validate_parameters()
+        self.distribution_state = self._set_distribution_state()
+        self._validate_likelihood_related_parameters()
+        return self.distribution_state
+
+    @staticmethod
+    def _set_parameter_type(param) -> ParameterType:
+        """Determine the type of a parameter."""
+        parameter_type = ParameterType()
+        if hasattr(param, "node_type"):
+            if param.node_type == "LinearPredictor":
+                raise ValueError(
+                    "InverseGamma cannot have LinearPredictor parameters as it cannot be a likelihood."
+                )
+            elif param.node_type == "Distribution":
+                parameter_type.is_randomvariable = True
+                return parameter_type
+        elif isinstance(param, jnp.ndarray):
+            parameter_type.is_array = True
+            return parameter_type
+        raise ValueError(f"Invalid parameter type: {type(param)}")
+
+    def _validate_parameters(self) -> None:
+        """Validate all parameters and their relationships."""
+        # Check parameter sizes
+        for name, param in self.distribution.parameters.items():
+            if hasattr(param, "size") and param.size != self.distribution.size:
+                raise ValueError(
+                    f"Parameter {name} size {param.size} does not match distribution size {self.distribution.size}"
+                )
+
+        # Validate prior requirements
+        param_types = list(self.parameter_types.values())
+        has_rv = any(pt.is_randomvariable for pt in param_types)
+        all_rv = all(pt.is_randomvariable for pt in param_types)
+        if has_rv and not all_rv:
+            raise NotImplementedError(
+                "For simplicity, only priors are supported whose parameters are either all random variables or none."
+            )
+
+    def _set_distribution_state(self) -> DistributionState:
+        """Setup distribution state based on parameter types."""
+        distribution_state = DistributionState()
+        parameter_types = self.parameter_types.values()
+
+        all_rv = all(pt.is_randomvariable for pt in parameter_types)
+        all_leaf = all(pt.is_array for pt in parameter_types)
+
+        if all_rv:
+            distribution_state.is_inner_prior = True
+        elif all_leaf:
+            distribution_state.is_leaf_prior = True
+
+        return distribution_state
+
+    def _validate_likelihood_related_parameters(self):
+        """Validate likelihood-related parameters."""
+        if self.distribution.responses is not None:
+            raise ValueError(
+                "Responses must not be provided for InverseGamma as it cannot be a likelihood."
+            )
+        if self.distribution_state.is_likelihood:
+            raise ValueError("InverseGamma cannot be a likelihood.")
+
+
+class IG(Distribution):
+    """InverseGamma distribution implementation."""
+
+    def __init__(
+        self,
+        rv_name: str,
+        concentration: Union[jnp.ndarray, Distribution],
+        scale: Union[jnp.ndarray, Distribution],
+        size: int,
+    ):
+        super().__init__(
+            rv_name, {"concentration": concentration, "scale": scale}, size
+        )
+
+        # InverseGamma distribution specific
+        self.realization_transformation = [TransformationFunctions.softplus]
+
+        # Validate and setup distribution state using the validator
+        self.validator = InverseGammaValidator(self)
+        self._distribution_state = self.validator.validate_and_setup()
+        self.parameter_types = self.validator.parameter_types
+
+        # VI related
+        self.node = self.setup_node()
+
+        # Model building related
+        if self._distribution_state.is_likelihood:
+            raise ValueError("InverseGamma cannot be a likelihood.")
+
+    def setup_node(self) -> None:
+        if self._distribution_state.is_inner_prior:
+            return self._setup_for_inner_prior()
+        elif self._distribution_state.is_leaf_prior:
+            return self._setup_for_leaf_prior()
+        else:
+            raise NotImplementedError(
+                "InverseGamma can only be used as inner or leaf prior."
+            )
+
+    def _setup_for_inner_prior(self) -> None:
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(self._compute_prior_log_pdf, in_axes=(0, 0, 0)),
+            local_dim=self.size,
+            transformations=self.realization_transformation,
+            parents=[
+                self.parameters["concentration"].node,
+                self.parameters["scale"].node,
+            ],
+        )
+
+    def _setup_for_leaf_prior(self) -> None:
+        return Node(
+            name=self.rv_name,
+            log_pdf=vmap(
+                partial(
+                    self._compute_prior_log_pdf,
+                    concentration=self.parameters["concentration"],
+                    scale=self.parameters["scale"],
+                ),
+                in_axes=(0,),
+            ),
+            local_dim=self.size,
+            transformations=self.realization_transformation,
+        )
+
+    @staticmethod
+    def _compute_prior_log_pdf(
+        realizations: jnp.ndarray, concentration: jnp.ndarray, scale: jnp.ndarray
+    ) -> jnp.ndarray:
+        """Not curried leaf log PDF computation."""
+        log_pdf = tfd.InverseGamma(concentration, scale).log_prob(realizations)
+        # Account for the transformation from unconstrained space
+        log_det_jacobian = -Softplus().forward_log_det_jacobian(realizations)
+        return log_pdf + log_det_jacobian
+
+    def __add__(self, other):
+        raise NotImplementedError(
+            "Addition operation is not supported for InverseGamma."
+        )
+
+    def __rmatmul__(self, other):
+        raise NotImplementedError(
+            "Matrix multiplication is not supported for InverseGamma."
         )

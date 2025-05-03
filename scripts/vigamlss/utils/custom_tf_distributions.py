@@ -14,7 +14,7 @@ class CustomGPD(tfd.GeneralizedPareto):
         loc,
         scale,
         shape,
-        support_penalty: float = 1e6,
+        support_penalty: float = 1000,
         validate_args=False,
         allow_nan_stats=True,
         name="CustomGPD",

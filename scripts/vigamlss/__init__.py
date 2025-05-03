@@ -4,16 +4,17 @@ from .utils.custom_tf_distributions import CustomALD
 from .model.distributions import (
     Normal,
     Gamma,
-    DegenerateNormal,
-    GPD,
+    DMN,
+    GP,
     GEV,
-    CenteredGPD,
-    ALD,
+    ZeroCenteredGP,
+    AL,
     HalfCauchy,
+    IG,
 )
 from .svi.variational_distributions import (
     VariationalDistribution,
-    FullCovarianceNormal,
+    FCMN,
     MeanFieldNormal,
 )
 
@@ -22,14 +23,15 @@ __all__ = [
     "DataPreparator",
     "Normal",
     "Gamma",
-    "DegenerateNormal",
-    "GPD",
+    "DMN",
+    "GP",
     "GEV",
-    "CenteredGPD",
-    "ALD",
+    "ZeroCenteredGP",
+    "AL",
     "CustomALD",
     "HalfCauchy",
     "VariationalDistribution",
-    "FullCovarianceNormal",
+    "FCMN",
     "MeanFieldNormal",
+    "IG",
 ]

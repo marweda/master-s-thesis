@@ -1,3 +1,6 @@
 __pycache__/
 sim_results/
 data/
+danish_results/
+dbbmi_results/
+plots/

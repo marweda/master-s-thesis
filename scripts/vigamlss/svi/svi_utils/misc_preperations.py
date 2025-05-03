@@ -32,20 +32,22 @@ def clip_min_max() -> optax.GradientTransformation:
     return optax.GradientTransformation(init_fn, update_fn)
 
 
-import optax
-import jax.numpy as jnp
-
-def warmup_constant_schedule(init_value: float, peak_value: float, warmup_steps: int) -> optax.Schedule:
+def warmup_constant_schedule(
+    init_value: float, peak_value: float, warmup_steps: int
+) -> optax.Schedule:
     """
     Returns a schedule that linearly increases the scalar from init_value to peak_value
     over warmup_steps, then remains constant at peak_value for all subsequent steps.
     """
+
     def schedule(step: int) -> float:
         step = jnp.asarray(step, dtype=jnp.float32)
         warmup_steps_f = jnp.asarray(warmup_steps, dtype=jnp.float32)
         warmup_value = init_value + (peak_value - init_value) * (step / warmup_steps_f)
         return jnp.where(step < warmup_steps, warmup_value, peak_value)
+
     return schedule
+
 
 def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs):
     """Returns a learning rate scheduler based on the specified type.
@@ -118,7 +120,9 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
             raise ValueError("warmup_fraction must be in [0, 1)")
         warmup_steps = int(total_steps * warmup_fraction)
         init_value = kwargs.get("init_value", 1e-7)
-        return warmup_constant_schedule(init_value=init_value, peak_value=lr, warmup_steps=warmup_steps)
+        return warmup_constant_schedule(
+            init_value=init_value, peak_value=lr, warmup_steps=warmup_steps
+        )
 
     elif scheduler_type == "step":
         # Validate required parameters
@@ -137,11 +141,15 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
             raise ValueError("step_events must be a non-empty list of integers")
         for step in step_events:
             if not isinstance(step, int) or step < 0:
-                raise ValueError(f"Invalid step {step} in step_events: must be non-negative integers")
+                raise ValueError(
+                    f"Invalid step {step} in step_events: must be non-negative integers"
+                )
             if step >= total_steps:
                 raise ValueError(f"Step event {step} exceeds total_steps {total_steps}")
         if not 0 < drop_magnitude <= 1:
-            raise ValueError("drop_magnitude should be between 0 (exclusive) and 1 (inclusive)")
+            raise ValueError(
+                "drop_magnitude should be between 0 (exclusive) and 1 (inclusive)"
+            )
 
         # Use step_events as the boundaries
         boundaries_and_scales = {int(step): drop_magnitude for step in step_events}
@@ -160,7 +168,6 @@ def prepare_scheduler(scheduler_type: str, lr: float, total_steps: int, **kwargs
         raise ValueError(f"Unknown scheduler type: {scheduler_type}")
 
 
-
 def prepare_opt_state(
     sgd_method: Type[optax.GradientTransformation],
     init_vi_parameters: Tuple[jnp.ndarray, jnp.ndarray],
@@ -176,11 +183,11 @@ def prepare_opt_state(
     if zero_nans_enabled:
         transformations.append(optax.zero_nans())
 
-    if max_norm is not None:
-        transformations.append(optax.clip_by_global_norm(max_norm))
-
     if clip_min_max_enabled:
         transformations.append(clip_min_max())
+
+    if max_norm is not None:
+        transformations.append(optax.clip_by_global_norm(max_norm))
 
     transformations.append(optimizer)
 

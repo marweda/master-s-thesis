@@ -28,14 +28,14 @@ class VariationalDistribution:
         self.num_vi = num_vi
 
 
-class FullCovarianceNormal(VariationalDistribution):
+class FCMN(VariationalDistribution):
     """Multivariate normal distribution with full covariance matrix."""
 
     def __init__(self, num_vi: int):
         super().__init__("full_covariance_normal", num_vi)
 
     def initialize_parameters(self) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        eye_matrix = jnp.eye(self.num_vi)*0.01
+        eye_matrix = jnp.eye(self.num_vi) * 0.01
         flattened_inv_sp_cholesky = fill_triangular_inverse(eye_matrix)
         return tuple([jnp.zeros(self.num_vi), stop_gradient(flattened_inv_sp_cholesky)])
 
@@ -47,7 +47,12 @@ class FullCovarianceNormal(VariationalDistribution):
         sample_size: int,
     ) -> jnp.ndarray:
         variational_lower_triangle = fill_triangular(variational_scale_tril)
-        mvn_tril = MultivariateNormalTriL(variational_loc, variational_lower_triangle)
+        variational_lower_triangle_inv_sp = TransformDiagonal(
+            diag_bijector=Softplus()
+        ).forward(variational_lower_triangle)
+        mvn_tril = MultivariateNormalTriL(
+            variational_loc, variational_lower_triangle_inv_sp
+        )
         return mvn_tril.sample((sample_size,), vi_sample_prngkey)
 
     @staticmethod
@@ -57,7 +62,12 @@ class FullCovarianceNormal(VariationalDistribution):
         variational_scale_tril: jnp.ndarray,
     ) -> jnp.ndarray:
         variational_lower_triangle = fill_triangular(variational_scale_tril)
-        mvn_tril = MultivariateNormalTriL(variational_loc, variational_lower_triangle)
+        variational_lower_triangle_inv_sp = TransformDiagonal(
+            diag_bijector=Softplus()
+        ).forward(variational_lower_triangle)
+        mvn_tril = MultivariateNormalTriL(
+            variational_loc, variational_lower_triangle_inv_sp
+        )
         return mvn_tril.log_prob(samples)
 
 
@@ -68,7 +78,7 @@ class MeanFieldNormal(VariationalDistribution):
         super().__init__("diagonal_normal", num_vi)
 
     def initialize_parameters(self) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        variances = jnp.ones(self.num_vi)*0.01
+        variances = jnp.ones(self.num_vi) * 0.01
         return tuple([jnp.zeros(self.num_vi), stop_gradient(variances)])
 
     @staticmethod
@@ -78,7 +88,7 @@ class MeanFieldNormal(VariationalDistribution):
         vi_sample_prngkey: PRNGKey,
         sample_size: int,
     ) -> jnp.ndarray:
-        mvn_diag = MultivariateNormalDiag(variational_loc, variational_diag_scale)
+        mvn_diag = MultivariateNormalDiag(variational_loc, Softplus().forward(variational_diag_scale))
         return mvn_diag.sample((sample_size,), vi_sample_prngkey)
 
     @staticmethod
@@ -87,5 +97,5 @@ class MeanFieldNormal(VariationalDistribution):
         variational_loc: jnp.ndarray,
         variational_diag_scale: jnp.ndarray,
     ) -> jnp.ndarray:
-        mvn_diag = MultivariateNormalDiag(variational_loc, variational_diag_scale)
+        mvn_diag = MultivariateNormalDiag(variational_loc, Softplus().forward(variational_diag_scale))
         return mvn_diag.log_prob(samples)

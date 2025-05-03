@@ -90,8 +90,6 @@ class BSplineBasis:
         x_min, x_max = jnp.min(X), jnp.max(X)
 
         if self.use_quantile:
-            # R's approach: inner knots are quantiles within x_min and x_max
-            # Compute positions: (1/(num_knots +1), ..., num_knots/(num_knots +1)) * 100%
             percentiles = jnp.linspace(
                 100 / (self.num_knots + 1),
                 100 * self.num_knots / (self.num_knots + 1),
@@ -100,15 +98,12 @@ class BSplineBasis:
             interior_knots = jnp.percentile(X, percentiles)
             interior_knots = jnp.clip(interior_knots, x_min, x_max)
 
-            # Boundary knots are x_min and x_max, each repeated (degree +1) times
             boundary_lower = jnp.full((self.degree + 1,), x_min)
             boundary_upper = jnp.full((self.degree + 1,), x_max)
 
-            # Concatenate and sort to ensure correct order
             knots = jnp.concatenate([boundary_lower, interior_knots, boundary_upper])
             knots = jnp.sort(knots)
         else:
-            # Existing equidistant code
             interior_knots, step = jnp.linspace(
                 x_min, x_max, self.num_knots, retstep=True
             )

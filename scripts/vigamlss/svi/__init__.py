@@ -1,6 +1,6 @@
 from .variational_distributions import (
     VariationalDistribution,
-    FullCovarianceNormal,
+    FCMN,
     MeanFieldNormal,
 )
 from .svi_core import (
@@ -27,7 +27,7 @@ from .svi_utils.misc_preperations import (
 
 __all__ = [
     "VariationalDistribution",
-    "FullCovarianceNormal",
+    "FCMN",
     "MeanFieldNormal",
     "prepare_vi_dist",
     "compute_neg_mc_elbo",
