@@ -2,7 +2,7 @@
 
 This repository was made for the Master's Thesis "Stochastic Variational Inference for Structured Additive Distributional Regression in Peak-over-Threshold Extreme Value Modeling".
 
-It contains the implementation of Stochastic Variational Inference (SVI) for Bayesian Structured Additive Distributional Regression (SADR). The implementation includes a comparison of SVI with Markov Chain Monte Carlo (MCMC) NUTS for Generalized Pareto (GP) distributed responses and addresses the computational SVI challenges posed by the parameter-dependent support of the GP distribution. It also implements a Bayesian peak-over-threshold extreme value modeling approach utilizing the Asymmetric Laplace Distribution (ALD).
+It contains the implementation of Stochastic Variational Inference (SVI) for Bayesian Structured Additive Distributional Regression (SADR) based on Generalized Additive Models for Location, Scale and Shape (GAMLSS). The implementation includes a comparison of SVI with Markov Chain Monte Carlo (MCMC) NUTS for Generalized Pareto (GP) distributed responses and addresses the computational SVI challenges posed by the parameter-dependent support of the GP distribution. It also implements a Bayesian peak-over-threshold extreme value modeling approach utilizing the Asymmetric Laplace Distribution (ALD).
 
 ## Overview
 
