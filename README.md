@@ -102,58 +102,25 @@ Y.model.run_svi_optimization(
 
 ## References
 
-- Balkema, A. A., & de Haan, L. (1974). Residual life time at great age. The Annals of Probability, 2(5), 792–804.
-https://doi.org/10.1214/aop/1176996548
-- Blei, D. M., Kucukelbir, A., & McAuliffe, J. D. (2017). Variational Inference: A Review for Statisticians.
-Journal of the American Statistical Association, 112(518), 859–877. https://doi.org/10.1080/01621459.
-2017.1285773
-- Bradbury, J., Frostig, R., Hawkins, P., Johnson, M. J., Leary, C., Maclaurin, D., Necula, G., Paszke, A.,
-VanderPlas, J., Wanderman-Milne, S., & Zhang, Q. (2018). JAX: Composable transformations of
-Python+NumPy programs. Google. http://github.com/google/jax
-- Callegher, G., Kneib, T., Söding, J., & Wiemann, P. (2025). Stochastic Variational Inference for Structured
-Additive Distributional Regression. arXiv. https://arxiv.org/abs/2412.10038
-- Coles, S. (2001). An Introduction to Statistical Modeling of Extreme Values. Springer London. https://doi.
-org/10.1007/978-1-4471-3675-0
-- Cuturi, M. (2013). Sinkhorn distances: Lightspeed computation of optimal transport [Editors: C.J. Burges
-and L. Bottou and M. Welling and Z. Ghahramani and K.Q. Weinberger]. Advances in Neural
-Information Processing Systems, 26. https://proceedings.neurips.cc/paper_files/paper/2013/file/
-af21d0c97db2e27e13572cbf59eb343d-Paper.pdf
-- DeepMind, Babuschkin, I., Baumli, K., Bell, A., Bhupatiraju, S., Bruce, J., Buchlovsky, P., Budden, D., Cai, T.,
-Clark, A., Danihelka, I., Dedieu, A., Fantacci, C., Godwin, J., Jones, C., Hemsley, R., Hennigan, T.,
-Hessel, M., Hou, S., . . . Viola, F. (2020). The DeepMind JAX Ecosystem. http://github.com/google-deepmind
-- Dillon, J. V., Langmore, I., Tran, D., Brevdo, E., Vasudevan, S., Moore, D., Patton, B., Alemi, A., Hoffman,
-M., & Saurous, R. A. (2017). Tensorflow distributions. arXiv. http://arxiv.org/abs/1711.10604v1
+- Balkema, A. A., & de Haan, L. (1974). Residual life time at great age. The Annals of Probability, 2(5), 792–804. https://doi.org/10.1214/aop/1176996548
+- Blei, D. M., Kucukelbir, A., & McAuliffe, J. D. (2017). Variational Inference: A Review for Statisticians. Journal of the American Statistical Association, 112(518), 859–877. https://doi.org/10.1080/01621459.2017.1285773
+- Bradbury, J., Frostig, R., Hawkins, P., Johnson, M. J., Leary, C., Maclaurin, D., Necula, G., Paszke, A., VanderPlas, J., Wanderman-Milne, S., & Zhang, Q. (2018). JAX: Composable transformations of Python+NumPy programs. Google. http://github.com/google/jax
+- Callegher, G., Kneib, T., Söding, J., & Wiemann, P. (2025). Stochastic Variational Inference for Structured Additive Distributional Regression. arXiv. https://arxiv.org/abs/2412.10038
+- Coles, S. (2001). An Introduction to Statistical Modeling of Extreme Values. Springer London. https://doi.org/10.1007/978-1-4471-3675-0
+- Cuturi, M. (2013). Sinkhorn distances: Lightspeed computation of optimal transport [Editors: C.J. Burges and L. Bottou and M. Welling and Z. Ghahramani and K.Q. Weinberger]. Advances in Neural Information Processing Systems, 26. https://proceedings.neurips.cc/paper_files/paper/2013/file/af21d0c97db2e27e13572cbf59eb343d-Paper.pdf
+- DeepMind, Babuschkin, I., Baumli, K., Bell, A., Bhupatiraju, S., Bruce, J., Buchlovsky, P., Budden, D., Cai, T., Clark, A., Danihelka, I., Dedieu, A., Fantacci, C., Godwin, J., Jones, C., Hemsley, R., Hennigan, T., Hessel, M., Hou, S., . . . Viola, F. (2020). The DeepMind JAX Ecosystem. http://github.com/google-deepmind
+- Dillon, J. V., Langmore, I., Tran, D., Brevdo, E., Vasudevan, S., Moore, D., Patton, B., Alemi, A., Hoffman, M., & Saurous, R. A. (2017). Tensorflow distributions. arXiv. http://arxiv.org/abs/1711.10604v1
 - Eilers, P. H. C., & Marx, B. D. (1996). Flexible smoothing with B-splines and penalties. Statistical Science,
-- Fisher, R. A., & Tippett, L. H. C. (1928). Limiting forms of the frequency distribution of the largest or
-smallest member of a sample. Mathematical Proceedings of the Cambridge Philosophical Society, 24(2),
-180–190. https://doi.org/10.1017/S0305004100015681
-- Flamary, R., Courty, N., Gramfort, A., Alaya, M. Z., Boisbunon, A., Chambon, S., Chapel, L., Corenflos, A.,
-Fatras, K., Fournier, N., Gautheron, L., Gayraud, N. T., Janati, H., Rakotomamonjy, A., Redko,
-I., Rolet, A., Schutz, A., Seguy, V., Sutherland, D. J., . . . Vayer, T. (2021). Pot: Python optimal
-transport. Journal of Machine Learning Research, 22(78), 1–8. http://jmlr.org/papers/v22/20-
-451.html
-- Hoffman, M. D., Blei, D. M., Wang, C., & Paisley, J. (2013). Stochastic variational inference. Journal of
-Machine Learning Research, 14(40), 1303–1347. http://jmlr.org/papers/v14/hoffman13a.html
-- Hoffman, M. D., & Gelman, A. (2014). The no-u-turn sampler: Adaptively setting path lengths in hamilto-
-nian monte carlo. J. Mach. Learn. Res., 15(1), 1593–1623.
-11(2), 89–121. https://doi.org/10.1214/ss/1038425655
-- Kingma, D. P., & Welling, M. (2013). Auto-Encoding Variational Bayes. arXiv. http://arxiv.org/abs/1312.
-6114
-- Kucukelbir, A., Tran, D., Ranganath, R., Gelman, A., & Blei, D. M. (2016). Automatic differentiation
-variational inference. https://arxiv.org/abs/1603.00788
-- Lang, S., & Brezger, A. (2004). Bayesian p-splines. Journal of Computational and Graphical Statistics, 13(1),
-183–212. https://doi.org/10.1198/1061860043010
-- Peyré, G., & Cuturi, M. (2020). Computational optimal transport. arXiv. http://arxiv.org/abs/1803.
-00567v4
-- Pickands III, J. (1975). Statistical inference using extreme order statistics. The Annals of Statistics, 3(1),
-119–131. https://doi.org/10.1214/aos/1176343002
-- Riebl, H., Wiemann, P. F. V., & Kneib, T. (2023). Liesel: A probabilistic programming framework for
-developing semi-parametric regression models and custom bayesian inference algorithms. https:
-//arxiv.org/abs/2209.10975
-- Stasinopoulos, M. D., Kneib, T., Klein, N., Mayr, A., & Heller, G. Z. (2024). Generalized additive models for
-location, scale, and shape: A distributional regression approach, with applications. Cambridge University
-Press. https://doi.org/10.1017/9781009410076
-- Youngman, B. D. (2019). Generalized Additive Models for Exceedances of High Thresholds With an
-Application to Return Level Estimation for U.S. Wind Gusts. Journal of the American Statistical
-Association, 114(528), 1865–1879. https://doi.org/10.1080/01621459.2018.1529596
+- Fisher, R. A., & Tippett, L. H. C. (1928). Limiting forms of the frequency distribution of the largest or smallest member of a sample. Mathematical Proceedings of the Cambridge Philosophical Society, 24(2), 180–190. https://doi.org/10.1017/S0305004100015681
+- Flamary, R., Courty, N., Gramfort, A., Alaya, M. Z., Boisbunon, A., Chambon, S., Chapel, L., Corenflos, A., Fatras, K., Fournier, N., Gautheron, L., Gayraud, N. T., Janati, H., Rakotomamonjy, A., Redko, I., Rolet, A., Schutz, A., Seguy, V., Sutherland, D. J., . . . Vayer, T. (2021). Pot: Python optimaltransport. Journal of Machine Learning Research, 22(78), 1–8. http://jmlr.org/papers/v22/20-451.html
+- Hoffman, M. D., Blei, D. M., Wang, C., & Paisley, J. (2013). Stochastic variational inference. Journal of Machine Learning Research, 14(40), 1303–1347. http://jmlr.org/papers/v14/hoffman13a.html
+- Hoffman, M. D., & Gelman, A. (2014). The no-u-turn sampler: Adaptively setting path lengths in hamiltonian monte carlo. J. Mach. Learn. Res., 15(1), 1593–1623.11(2), 89–121. https://doi.org/10.1214/ss/1038425655
+- Kingma, D. P., & Welling, M. (2013). Auto-Encoding Variational Bayes. arXiv. http://arxiv.org/abs/1312.6114
+- Kucukelbir, A., Tran, D., Ranganath, R., Gelman, A., & Blei, D. M. (2016). Automatic differentiation variational inference. https://arxiv.org/abs/1603.00788
+- Lang, S., & Brezger, A. (2004). Bayesian p-splines. Journal of Computational and Graphical Statistics, 13(1),183–212. https://doi.org/10.1198/1061860043010
+- Peyré, G., & Cuturi, M. (2020). Computational optimal transport. arXiv. http://arxiv.org/abs/1803.00567v4
+- Pickands III, J. (1975). Statistical inference using extreme order statistics. The Annals of Statistics, 3(1), 119–131. https://doi.org/10.1214/aos/1176343002
+- Riebl, H., Wiemann, P. F. V., & Kneib, T. (2023). Liesel: A probabilistic programming framework for developing semi-parametric regression models and custom bayesian inference algorithms. https://arxiv.org/abs/2209.10975
+- Stasinopoulos, M. D., Kneib, T., Klein, N., Mayr, A., & Heller, G. Z. (2024). Generalized additive models for location, scale, and shape: A distributional regression approach, with applications. Cambridge University Press. https://doi.org/10.1017/9781009410076
+- Youngman, B. D. (2019). Generalized Additive Models for Exceedances of High Thresholds With an Application to Return Level Estimation for U.S. Wind Gusts. Journal of the American Statistical Association, 114(528), 1865–1879. https://doi.org/10.1080/01621459.2018.1529596
 
