@@ -50,7 +50,7 @@ from vigamlss import (
     DataPreparator,
     DegenerateNormal,
     IG,
-    FCMNormal,
+    FCMN,
     ZeroCenteredGP,
     AL,
 )
