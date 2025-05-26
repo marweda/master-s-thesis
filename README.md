@@ -120,8 +120,7 @@ Information Processing Systems, 26. https://proceedings.neurips.cc/paper_files/p
 af21d0c97db2e27e13572cbf59eb343d-Paper.pdf
 - DeepMind, Babuschkin, I., Baumli, K., Bell, A., Bhupatiraju, S., Bruce, J., Buchlovsky, P., Budden, D., Cai, T.,
 Clark, A., Danihelka, I., Dedieu, A., Fantacci, C., Godwin, J., Jones, C., Hemsley, R., Hennigan, T.,
-Hessel, M., Hou, S., . . . Viola, F. (2020). The DeepMind JAX Ecosystem. http://github.com/google-
-deepmind
+Hessel, M., Hou, S., . . . Viola, F. (2020). The DeepMind JAX Ecosystem. http://github.com/google-deepmind
 - Dillon, J. V., Langmore, I., Tran, D., Brevdo, E., Vasudevan, S., Moore, D., Patton, B., Alemi, A., Hoffman,
 M., & Saurous, R. A. (2017). Tensorflow distributions. arXiv. http://arxiv.org/abs/1711.10604v1
 - Eilers, P. H. C., & Marx, B. D. (1996). Flexible smoothing with B-splines and penalties. Statistical Science,
