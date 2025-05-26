@@ -2,17 +2,15 @@
 
 This repository was made for my Master's Thesis "Stochastic Variational Inference for Structured Additive Distributional Regression in Peak-over-Threshold Extreme Value Modeling".
 
-The VIGAMLSS scripts contain the implementation of Stochastic Variational Inference (SVI) for Bayesian Structured Additive Distributional Regression (SADR) based on Generalized Additive Models for Location, Scale and Shape (GAMLSS). The notebook uses the VIGAMLSS scripts to compare SVI with the Markov Chain Monte Carlo (MCMC) No-U Turn Sampler (NUTS) for Generalized Pareto (GP) distributed responses and to have a look at the computational SVI challenges posed by the parameter-dependent support of the GP distribution. It also implements a Bayesian peak-over-threshold extreme value modeling approach utilizing the Asymmetric Laplace Distribution (ALD).
-
 ## Overview
 
-The repository provides a Python implementation of SVI using automatic differentiation (Automatic Differentiation Variational Inference) as detailed in the accompanying thesis using the JAX framework. VIGAMLSS's probabilistic modeling is based on the Distribution and Bijector classes of TensorFlow Probability. The implementation is structured as a package named VIGAMLSS, which provides a modeling pipeline for:
+The repository provides a Python implementation of SVI using automatic differentiation (Automatic Differentiation Variational Inference) as detailed in the accompanying thesis using the JAX framework. VIGAMLSS's probabilistic modeling of Bayesian Structured Additive Distributional Regression (SADR) models based on Generalized Additive Models for Location, Scale and Shape (GAMLSS) is based on the Distribution and Bijector classes of TensorFlow Probability. The implementation is structured as a package named VIGAMLSS, which provides a modeling pipeline for:
 
 - Design matrix construction for P-splines
 - SADR GAMLSS Model specification
-- SVI posterior inference
+- SVI posterior inference via gradient-based optimization using automatic differentiation gradient estimates of the ELBO
 
-The notebook contains analyses conducted for the master's thesis using VIGAMLSS and other Python packages, such as Liesel, POT, and OTT-JAX.
+The notebook uses the VIGAMLSS scripts to compare SVI with the Markov Chain Monte Carlo (MCMC) No-U Turn Sampler (NUTS) for Generalized Pareto (GP) distributed responses and to have a look at the computational SVI challenges posed by the parameter-dependent support of the GP distribution. It also implements a Bayesian peak-over-threshold extreme value modeling approach utilizing the Asymmetric Laplace Distribution (ALD).
 
 ## Features
 
@@ -24,7 +22,7 @@ VIGAMLSS:
 
 Notebook:
 - Comparative analysis with MCMC NUTS (using Liesel)
-- Evaluation metrics including Wasserstein and Sinkhorn distances
+- Posterior approximation evaluation metrics including Wasserstein and Sinkhorn distances
 - Simulation study with varying sample sizes
 - Peak-over-Threshold Extreme Value Modeling Case study using Danish Fire Insurance dataset
 
