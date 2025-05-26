@@ -1,26 +1,30 @@
 # VIGAMLSS: Variational Inference for Generalized Additive Models for Location, Scale and Shape
 
-This repository was made for the Master's Thesis "Stochastic Variational Inference for Structured Additive Distributional Regression in Peak-over-Threshold Extreme Value Modeling".
+This repository was made for my Master's Thesis "Stochastic Variational Inference for Structured Additive Distributional Regression in Peak-over-Threshold Extreme Value Modeling".
 
-It contains the implementation of Stochastic Variational Inference (SVI) for Bayesian Structured Additive Distributional Regression (SADR) based on Generalized Additive Models for Location, Scale and Shape (GAMLSS). The implementation includes a comparison of SVI with Markov Chain Monte Carlo (MCMC) NUTS for Generalized Pareto (GP) distributed responses and addresses the computational SVI challenges posed by the parameter-dependent support of the GP distribution. It also implements a Bayesian peak-over-threshold extreme value modeling approach utilizing the Asymmetric Laplace Distribution (ALD).
+The VIGAMLSS scripts contain the implementation of Stochastic Variational Inference (SVI) for Bayesian Structured Additive Distributional Regression (SADR) based on Generalized Additive Models for Location, Scale and Shape (GAMLSS). The notebook uses the VIGAMLSS scripts to compare SVI with the Markov Chain Monte Carlo (MCMC) No-U Turn Sampler (NUTS) for Generalized Pareto (GP) distributed responses and to have a look at the computational SVI challenges posed by the parameter-dependent support of the GP distribution. It also implements a Bayesian peak-over-threshold extreme value modeling approach utilizing the Asymmetric Laplace Distribution (ALD).
 
 ## Overview
 
 The repository provides a Python implementation of SVI as detailed in the accompanying thesis using the JAX framework. The implementation is structured as a package named VIGAMLSS, which provides a modeling pipeline for:
 
 - Design matrix construction for P-splines
-- SADR Model specification
+- SADR GAMLSS Model specification
 - SVI posterior inference
 
 ## Features
 
-- SVI implementation with Full Covariance Multivariate Normal (FCMN) variational distribution
-- Modified GP distribution for handling parameter-dependent support durin SVI optimization
+VIGAMLSS:
+- Automatic Differentiation Variational Inference (ADVI) optimization algorithm with Full Covariance Multivariate Normal (FCMN) variational distribution
+- Modified GP distribution for handling parameter-dependent support during SVI optimization
 - Asymmetric Laplace (AL) distribution implementation for Two-stage Peaks-over-Threshold extreme value modeling
+- Inverse Gamma, Normal, (Degenerate) Multivariate Normal, and Half-Cauchy prior implementation
+
+Notebook:
 - Comparative analysis with MCMC NUTS (using Liesel)
 - Evaluation metrics including Wasserstein and Sinkhorn distances
 - Simulation study with varying sample sizes
-- Case study using Danish Fire Insurance dataset
+- Peak-over-Threshold Extreme Value Modeling Case study using Danish Fire Insurance dataset
 
 ## Core Dependencies
 
@@ -95,14 +99,6 @@ Y.model.run_svi_optimization(
     scheduler_type="constant",
 )
 ```
-
-## Code 
-
-The repository includes code for:
-
-1. **Core SADR SVI Code**: SVI optimization engine and a SADR model building framework.
-2. **Simulation Study**: Evaluates SVI and MCMC on simulated GP-distributed data with varying sample sizes.
-3. **Case Study**: Applies a two-stage approach to the Danish Fire Insurance dataset.
 
 ## References
 
