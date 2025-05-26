@@ -6,11 +6,13 @@ The VIGAMLSS scripts contain the implementation of Stochastic Variational Infere
 
 ## Overview
 
-The repository provides a Python implementation of SVI as detailed in the accompanying thesis using the JAX framework. The implementation is structured as a package named VIGAMLSS, which provides a modeling pipeline for:
+The repository provides a Python implementation of SVI using automatic differentiation (Automatic Differentiation Variational Inference) as detailed in the accompanying thesis using the JAX framework. VIGAMLSS's probabilistic modeling is based on the Distribution and Bijector classes of TensorFlow Probability. The implementation is structured as a package named VIGAMLSS, which provides a modeling pipeline for:
 
 - Design matrix construction for P-splines
 - SADR GAMLSS Model specification
 - SVI posterior inference
+
+The notebook contains analyses conducted for the master's thesis using VIGAMLSS and other Python packages, such as Liesel, POT, and OTT-JAX.
 
 ## Features
 
