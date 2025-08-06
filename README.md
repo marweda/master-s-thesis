@@ -2,6 +2,13 @@
 
 This repository was made for my Master's Thesis "Stochastic Variational Inference for Structured Additive Distributional Regression in Peak-over-Threshold Extreme Value Modeling".
 
+## Thesis Description
+### English
+Methodological comparative study between a computationally intensive, asymptotically exact method (NUTS MCMC Sampling) and a computationally fast yet approximate method (Stochastic Variational Inference) for Bayesian parameter estimation/posterior estimation in semi-parametric regression models (Structured Additive Distributional Regression) that account for distributional parameters beyond the mean. The methods are applied in the context of statistical modelling of extreme-value data defined by threshold exceedances (Peak-over-Threshold). The Stochastic Variational Inference and the model architecture were implemented independently using the Python library JAX, which provides automatic differentiation and GPU-accelerated numerical computations.
+
+### Deutsch
+Methodisch vergleichende Arbeit zwischen einer rechenintensiven, asymptotisch exakten Methode (NUTS MCMC Sampling) und einer recheneffizienten, jedoch approximativen Methode (Stochastic Variational Inference) zur bayes’schen Parameterschätzung/Posteriorschätzung in semi-parametrischen Regressionsmodellen (Structured Additive Distributional Regression), welche neben dem Mittelwert weitere Verteilungsparameter berücksichtigen. Die Verfahren werden im Kontext der statistischen Modellierung von Extremwertdaten angewandt, welche durch Schwellenüberschreitungen definiert sind (Peak-over-Threshold). Die Implementierung der Stochastic Variational Inference sowie der Modellarchitektur erfolgte eigenständig mittels der Python-Bibliothek JAX, welche automatische Differentiation sowie GPU-beschleunigte numerische Berechnungen ermöglicht.
+
 ## Overview
 
 The repository provides a Python implementation of SVI using automatic differentiation (Automatic Differentiation Variational Inference) as detailed in the accompanying thesis using the JAX framework. VIGAMLSS's probabilistic modeling of Bayesian Structured Additive Distributional Regression (SADR) models based on Generalized Additive Models for Location, Scale and Shape (GAMLSS) is based on the Distribution and Bijector classes of TensorFlow Probability. The implementation is structured as a package named VIGAMLSS, which provides a modeling pipeline for:
